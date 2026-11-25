@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bring exported briefs and portfolio plans into the demo’s calendar review interface. Compare options on per-person timelines, inspect original and proposed times, and save the selected proposal.
+
 - Build dated snapshots from roster profiles, recurring occurrences and shared calendar evidence.
 - Plan multiple meetings with CP-SAT, compare named ritual move budgets, protect focus time and evaluate cluster packing, weekday roles, delegates and soft preferences.
 - Diagnose calendar load, invite hygiene and series review dates with the Calendar OS workflow.

@@ -43,4 +43,6 @@ For the scatter comparison, the solver maximizes distinct cluster dates under th
 
 See the [Calendar OS guide](calendar-os.md) for the scoring and template rules. Run `schedule-plan calendar-os snapshot.json` to inspect observed load by person and weekday, recurring series due for review, and possible invite changes. Review the suggested day roles before copying them to `portfolio.week_template` and running the solver. Hosts can use the profiles under [examples/profiles](../examples/profiles) and the [skill workflow](../.agents/skills/plan-meetings/SKILL.md).
 
-Run `schedule-plan visualize decision.json --snapshot snapshot.json --output plan.html` to render a decision for review, or use `export-pack` to include the snapshot and proposal text. Run [prepare-apply](apply.md) only for a selected proposal. The organizer reviews the exact changes before authorizing a write.
+Run `schedule-plan visualize decision.json --snapshot snapshot.json --output plan.html` to render a decision for review, or use `export-pack` to include the snapshot and proposal text. The timeline uses the portfolio timezone initially. Choose a different zone in the header, switch between Current and Proposed, or use Compare to inspect both at once. Identical placements appear once among the choices. Each tested move budget retains its own result under **Compare move budgets**. Open **Review proposal** to save the selected schedule as text.
+
+Run [prepare-apply](apply.md) only for a selected proposal. The organizer reviews the exact changes before authorizing a write.

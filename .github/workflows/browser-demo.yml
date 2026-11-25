@@ -9,14 +9,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: python3 tools/check_browser_demo.py
-      - name: Capture the three documentation figures
+      - name: Capture demo figures and test exported reviews
         run: |
           python3 -m venv "$RUNNER_TEMP/demo-capture"
-          "$RUNNER_TEMP/demo-capture/bin/pip" install playwright==1.65.2
+          "$RUNNER_TEMP/demo-capture/bin/pip" install . playwright==1.65.2
           "$RUNNER_TEMP/demo-capture/bin/python" tools/capture_demo.py "$RUNNER_TEMP/demo-images"
+          "$RUNNER_TEMP/demo-capture/bin/python" tools/check_review_browser.py "$RUNNER_TEMP/demo-images"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: demo-images
-          path: ${{ runner.temp }}/demo-images/*.png
+          path: ${{ runner.temp }}/demo-images/
           if-no-files-found: error
           retention-days: 7

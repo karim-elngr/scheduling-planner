@@ -1,0 +1,49 @@
+.rg-heading, .rg-key, .rg-detail {display:flex; align-items:center; flex-wrap:wrap; gap:.45rem}
+.rg-heading {margin:7px 0 10px; min-height:32px; color:var(--ink); font-size:.84rem}
+.rg-date {font-weight:650}
+.rg-date, .rg-nav, .rg-close {background:var(--sheet); border:1px solid var(--line); border-radius:6px; color:var(--ink); font:inherit; cursor:pointer}
+.rg-date {padding:4px 6px; font-weight:650; max-width:calc(100% - 70px)}
+.rg-nav {font-size:1.1rem; line-height:1.1; padding:3px 8px}
+.rg-nav:disabled {opacity:.42; cursor:default}
+#calendar-grid:has(.rg-panels) {padding:0 12px 6px}
+.rg-panels, .rg-panel {min-width:0}
+.rg-compare {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.rg-panel-title {font:650 .8rem/1.45 system-ui,sans-serif; margin:0 0 .4rem}
+.rg-scroll {max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain; border-block:1px solid var(--line); scrollbar-width:thin}
+.rg-timesheet {--rg-axis:47px; display:grid; grid-template-columns:var(--rg-axis) repeat(var(--rg-count),minmax(0,1fr)); min-width:calc(var(--rg-axis) + var(--rg-count) * 75px); font-variant-numeric:tabular-nums}
+.rg-timesheet.rg-offsets {--rg-axis:77px}
+.rg-group {border-bottom:1px solid var(--line); padding:5px; color:var(--muted); font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em}
+.rg-other {background-color:var(--tint)}
+.rg-column-head {display:flex; justify-content:center; align-items:center; padding:6px 3px; min-height:37px; font-size:.8rem; line-height:1.15; font-weight:680; overflow-wrap:anywhere; text-align:center}
+.rg-axis {position:sticky; left:0; z-index:2; background:var(--sheet)}
+.rg-column {min-width:0; display:grid; grid-template-rows:subgrid; grid-row:span 2; border-left:1px solid var(--line)}
+.rg-axis {display:grid; grid-template-rows:subgrid; grid-row:span 2}
+.rg-track {position:relative; height:var(--rg-height); background:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px var(--rg-step))}
+.rg-axis .rg-track {background:none}
+.rg-tick {position:absolute; right:6px; color:var(--muted); font:.66rem/1.2 ui-monospace,monospace; padding-top:2px; white-space:nowrap}
+.rg-event {position:absolute; display:block; box-sizing:border-box; min-width:0; margin:0; overflow:hidden; padding:1px 4px; border:1px solid var(--rg-border); border-radius:4px; text-align:left; background:var(--rg-fill); color:var(--rg-color); font:600 .72rem/1.18 system-ui,sans-serif; cursor:pointer}
+.rg-event:focus-visible {z-index:1}
+.rg-card-title, .rg-card-time {display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden}
+.rg-card-time {font-size:.62rem; font-weight:450}
+.rg-existing {--rg-fill:var(--review); --rg-border:#a69abe; --rg-color:#3c3254}
+.rg-added {--rg-fill:var(--lime); --rg-border:#96b875; --rg-color:#2f4721}
+.rg-moved {--rg-fill:var(--sync); --rg-border:#c29a68; --rg-color:#593b20}
+.rg-conditional {--rg-fill:var(--amber); --rg-border:#a07b33; --rg-color:#664c1c}
+.rg-original {--rg-fill:repeating-linear-gradient(135deg,var(--sheet) 0 4px,#e5e6dc 4px 5px); --rg-border:#a4a59a; --rg-color:#4f5750}
+.rg-event.rg-original, .rg-event.rg-conditional {border-style:dashed}
+.rg-key {padding:.6rem 0 .15rem; color:var(--muted); column-gap:.9rem; font-size:.7rem}
+.rg-key-item {display:inline-flex; align-items:center; gap:4px}
+.rg-key-item::before {content:""; width:15px; height:8px; border-radius:3px; border:1px solid var(--rg-border); background:var(--rg-fill)}
+.rg-key-item.rg-original::before, .rg-key-item.rg-conditional::before {border-style:dashed}
+.rg-detail {align-items:baseline; background:var(--tint); border-radius:6px; padding:.55rem .6rem; margin-top:.55rem; font-size:.8rem}
+.rg-detail span {flex:1 1 13rem; overflow-wrap:anywhere}
+.rg-detail[hidden] {display:none}
+.rg-close {font-size:.75rem; padding:3px 8px}
+.rg-empty {color:var(--muted); font-size:.88rem; margin:1rem 0}
+@media(max-width:680px) {
+  .rg-compare {grid-template-columns:minmax(0,1fr)}
+  .rg-timesheet {--rg-axis:37px; min-width:calc(var(--rg-axis) + var(--rg-count) * 69px)}
+  .rg-heading {margin-top:0}
+}
+
+.rg-clock-label {color:var(--muted); font-size:.65rem; font-weight:500}

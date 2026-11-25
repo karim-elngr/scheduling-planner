@@ -38,7 +38,9 @@ uv run --locked --extra dev python tools/eval_agent.py
 uv run --locked --extra dev python tools/refresh_demo.py --check
 ```
 
-The suite checks Python and CLI behavior. The evaluator checks decisions taken by the agent workflow. The freshness check compares the published demo reference with new CP-SAT solves. For calendar UI changes, run `python tools/check_browser_demo.py` with Google Chrome on your path, or pass `--chrome` followed by the browser executable path. It exercises the same journey at 375 and 1280 pixels, including the selected snapshot download. For packaging changes, also run the [release checks](docs/releasing.md).
+The suite checks Python and CLI behavior. The evaluator checks decisions taken by the agent workflow. The freshness check compares the published demo reference with new CP-SAT solves. For calendar UI changes, run `python tools/check_browser_demo.py` with Google Chrome on your path, or pass `--chrome` followed by the browser executable path. It exercises the same journey at 375 and 1280 pixels, including the selected snapshot download. To check exported plans, install the project and Playwright in the same environment, then run `python tools/check_review_browser.py local/review-images`. It opens generated single-meeting and squad-week decisions offline in Chrome, exercises the calendar and handoff controls at both widths, and saves screenshots. Supply `--chrome` to use a specific binary. For packaging changes, also run the [release checks](docs/releasing.md).
+
+The visualizer and demo share `planner.css`, `planner-brand.html` and `planner-ui.js` under `src/scheduling_planner/data/`. Edit those source assets and run `python tools/refresh_demo.py` to update the standalone demo. The freshness check verifies the inlined assets.
 
 ## Open a pull request
 

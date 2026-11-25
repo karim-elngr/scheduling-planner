@@ -4,174 +4,90 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-<title>Calendar proposal</title>
+<title>Calendar proposal · Scheduling Planner</title>
+<style>{{PLANNER_CSS}}</style>
+<style>{{REVIEW_GRID_CSS}}</style>
 <style>
-:root {color-scheme:light; --ink:#192e32; --muted:#495f62; --line:#c9d6d3; --teal:#0e5e52; --paper:#fbfcf8}
-* {box-sizing:border-box}
-body {margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 "Inter",system-ui,sans-serif}
-main {max-width:66rem;margin:auto;padding:clamp(1rem,4vw,3rem)}
-header {border-bottom:2px solid var(--ink);padding-bottom:1rem}
-h1,h2,h3,p {margin:0}
-h1 {font:normal clamp(2.4rem,6vw,4.2rem)/1.15 "DM Serif Text",Georgia,serif}
-h2 {font:normal 1.85rem/1.25 "DM Serif Text",Georgia,serif;margin-bottom:.65rem}
-header p,.quiet,.attendees,time {color:var(--muted)}
-#scope {margin-top:.75rem}
-.controls {display:flex;align-items:end;flex-wrap:wrap;gap:1rem 2rem;margin:1.5rem 0}
-label {font-size:.88rem;font-weight:650}
-select,button {color:var(--ink);background:white;border:1px solid #849c99;border-radius:.35rem;font:inherit;padding:.45rem .65rem}
-select {display:block;max-width:100%;margin-top:.25rem}
-button {cursor:pointer;line-height:1.2}
-:focus-visible {outline:3px solid #0c726b;outline-offset:2px}
-input {accent-color:var(--teal)}
-section,details {margin:1.6rem 0}
-#evidence {font-weight:650}
-#notes {padding-left:1.25rem;margin:.5rem 0}
-.week-head,.day {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.5rem 1rem}
-.week-head strong {font-size:1rem;border-bottom:2px solid var(--ink);padding-bottom:.5rem}
-.day {padding:.8rem 0;border-bottom:1px solid var(--line)}
-.day h3 {grid-column:1/-1;font-size:.95rem}
-ol {list-style:none;padding:0;margin:0}
-.event {background:#f0f4f0;border-left:.25rem solid #8c9f9d;padding:.55rem .7rem;margin:.35rem 0;overflow-wrap:anywhere}
-.event.new {background:#e2f2e9;border-color:#28745a}
-.event.moved {background:#fbefdc;border-color:#a8680c}
-.event b,.event small,.event time {display:block}
-time {font-variant-numeric:tabular-nums;font-size:.88rem}
-.event small {font-size:.82rem}
-.kind {font-size:.78rem;font-weight:650}
-.empty {font-size:.88rem;color:var(--muted);padding:.55rem 0}
-.table-wrap {overflow:auto}
-table {border-collapse:collapse;width:100%;font-size:.92rem}
-th,td {text-align:left;border-bottom:1px solid var(--line);padding:.6rem .5rem}
-th {vertical-align:bottom}
-summary {cursor:pointer;font-weight:650;color:var(--teal)}
-[hidden] {display:none !important}
-@media(max-width:480px){.week-head,.day{column-gap:.5rem}.event{padding:.4rem}.controls{gap:.5rem 1rem}}
-@media print {.controls,button {display:none} .event{break-inside:avoid} section{break-inside:auto}}
+.review .date {display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.5rem .85rem}
+.review select {font:inherit;color:var(--deep);background-color:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:.32rem .4rem}
+.review select:focus-visible {outline:3px solid #a04d14;outline-offset:2px}
+.review .hero h1 {text-wrap:balance}
+.review .picks {grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))}
+.review .candidate {min-width:0}
+.review .candidate-time {overflow-wrap:anywhere}
+.review .cal-top {align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:10px}
+.mode-switch {display:inline-flex;gap:2px;padding:3px;background:var(--tint);border-radius:7px}
+.mode-switch button {background:transparent;color:var(--muted);border-radius:5px;min-height:30px;padding:4px 10px;font-size:.77rem;font-weight:600}
+.mode-switch button[aria-pressed=true] {background:var(--sheet);color:var(--ink);box-shadow:0 1px 3px #19352d29}
+.scope-note {margin:0 18px 8px;color:var(--muted);font-size:.78rem}
+.grid-filter {display:inline-flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.77rem}
+.grid-filter input {accent-color:var(--deep)}
+.grid-tools {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.review .inspect {overflow-wrap:anywhere}
+.review .inspect ul:empty {display:none}
+.change-title,.change-time {display:block}
+.change-time {color:var(--muted);font-variant-numeric:tabular-nums}
+.review .reference {padding:0;overflow:hidden}
+.review .reference details {padding:12px 16px}
+.review .reference details+details {border-top:1px solid var(--line)}
+.review .reference table {width:100%;font-variant-numeric:tabular-nums}
+.review .reference th,.review .reference td {vertical-align:top;border-bottom:1px solid var(--line)}
+.review .reference th {color:var(--ink)}
+.review .reference th button {background:var(--tint);border-radius:4px;padding:3px 8px;font:inherit}
+.table-scroll {overflow:auto}
+.review .reference ul {margin:7px 0;padding-left:1.25rem}
+.review .handoff pre {white-space:pre-wrap;max-height:none;font:inherit;line-height:1.55;border-radius:6px}
+.review #choose,.review #compare-time {width:100%}
+@media(max-width:580px){
+  .review .picks {grid-template-columns:repeat(auto-fit,minmax(min(100%,6rem),1fr))}
+  .review .candidate-time {font-size:1.13rem}
+  .review .date {gap:.2rem .45rem}
+  .review .brand {white-space:nowrap}
+  .review .cal-top {align-items:flex-start}
+  .review .grid-tools {gap:5px}
+  .review .grid-filter {font-size:.71rem}
+  .review .mode-switch button {padding:4px 7px}
+}
+@media print {#picks,#view-mode,.buttons,.export,.grid-filter {display:none}}
 </style>
 </head>
-<body>
+<body class="review">
+<div class="shell">
+<header class="brandbar">{{PLANNER_BRAND}}<div class="date"><span id="date"></span>
+<label id="zone-label"><span class="sr">Display timezone</span><select id="zone"></select></label></div></header>
 <main>
-<header><h1>Calendar proposal</h1><p id="scope"></p></header>
-<noscript>Enable JavaScript in this file to compare proposed schedules.</noscript>
-<div class="controls">
-<label id="plan-label" hidden>Schedule<select id="plan"></select></label>
-<label>Display times in<select id="zone"><option>UTC</option></select></label>
-<label id="filter-label" hidden><input id="filter" type="checkbox"> Changes only</label>
-</div>
-<div aria-live="polite"><p id="evidence"></p><ul id="notes"></ul></div>
-<section aria-labelledby="week-title">
-<h2 id="week-title">Week comparison</h2>
-<div class="week-head"><strong>Current week</strong><strong>Proposed week</strong></div><div id="days"></div>
+<header class="hero"><h1 id="headline">Calendar proposal</h1><p id="subtitle"></p></header>
+<noscript>Enable JavaScript to see the saved schedule and compare options.</noscript>
+<div class="picks" id="picks" aria-label="Scheduling options" role="group" hidden></div>
+<div class="workbench">
+<section class="calendar" aria-labelledby="calendar-title">
+<header class="cal-top"><h2 id="calendar-title">People’s calendars</h2>
+<div class="grid-tools"><label class="grid-filter" id="filter-label" hidden><input type="checkbox" id="filter">Changes only</label>
+<div class="mode-switch" id="view-mode" role="group" aria-label="Calendar view">
+<button type="button" data-mode="current">Current</button><button type="button" data-mode="proposed">Proposed</button><button type="button" data-mode="compare">Compare</button>
+</div></div></header>
+<p id="scope-note" class="scope-note" hidden>Showing only the changes in the saved report.</p>
+<div id="calendar-grid"></div>
 </section>
-<section id="comparison" hidden><h2>Move budgets</h2><div class="table-wrap"><table>
-<thead><tr id="headers"></tr></thead><tbody id="caps"></tbody></table></div></section>
+<aside class="inspect" aria-labelledby="insight-title">
+<div aria-live="polite"><div class="status" id="decision-state"></div><h2 id="insight-title"></h2>
+<p id="insight-note"></p><div class="metric" id="metric"></div></div>
+<ul id="changes"></ul><p class="question" id="question" hidden></p>
+<div class="buttons"><button type="button" id="choose" class="btn primary">Review proposal</button><button type="button" id="compare-time" class="btn compare" hidden></button></div>
+</aside></div>
+<section class="handoff" id="handoff" aria-labelledby="handoff-title" hidden>
+<div class="handoff-top"><h2 id="handoff-title" tabindex="-1">Proposal to share</h2><button type="button" id="close" class="btn close" aria-label="Close proposal">×</button></div>
+<pre id="proposal"></pre><div class="export"><button type="button" class="btn primary" id="proposal-download">Save proposal as text</button></div>
+</section>
+<div class="reference">
+<details id="comparison" hidden><summary>Compare move budgets</summary>
+<div class="table-scroll"><table><thead><tr id="headers"></tr></thead><tbody id="caps"></tbody></table></div></details>
+<details id="reasoning" hidden><summary>Scheduling evidence</summary><p id="evidence"></p><ul id="facts"></ul></details>
 <details id="profiles" hidden><summary>Roster hours and weekends</summary><ul id="explainers"></ul></details>
-</main>
+</div>
+</main></div>
 <script id="calendar-data" type="application/json">{{CALENDAR_DATA}}</script>
-<script>
-"use strict";
-const data = JSON.parse(document.getElementById("calendar-data").textContent);
-const el = id => document.getElementById(id);
-function node(tag, text, css) {
-  const n = document.createElement(tag);
-  if (text != null) n.textContent = text;
-  if (css) n.className = css;
-  return n;
-}
-function dateFormat(zone, options) {
-  return new Intl.DateTimeFormat("en-GB", {timeZone:zone, ...options});
-}
-const picker = el("plan");
-const zones = el("zone");
-for (const zone of data.timezones) {
-  if (zone === "UTC") continue;
-  try { dateFormat(zone, {}).format(0); }
-  catch { continue; }
-  zones.add(new Option(zone, zone));
-}
-for (const option of data.options) {
-  picker.add(new Option(option.label, option.id));
-}
-if (data.primary && data.options.some(o => o.id === data.primary)) picker.value = data.primary;
-el("scope").textContent = data.status + (data.fullSnapshot ? " · Snapshot calendar" : " · Showing reported changes only");
-el("plan-label").hidden = data.options.length < 2;
-el("filter-label").hidden = !data.fullSnapshot || !data.options.length;
-for (const note of data.explainers) el("explainers").append(node("li", note));
-el("profiles").hidden = !data.explainers.length;
-
-function collect(option) {
-  const before = new Map();
-  const after = new Map();
-  if (!el("filter").checked) {
-    for (const event of data.current) {
-      before.set(event.id, {event, kind:""});
-      if (option) after.set(event.id, {event, kind:""});
-    }
-  }
-  for (const move of option?.moves || []) {
-    before.set(move.before.id, {event:move.before, kind:"moved"});
-    after.set(move.after.id, {event:move.after, kind:"moved"});
-  }
-  const additions = (option?.placements || []).map(event => ({event, kind:"new"}));
-  return [[...before.values()], [...after.values(), ...additions]];
-}
-function render() {
-  const option = data.options.find(o => o.id === picker.value);
-  el("evidence").textContent = option?.evidence || "No schedule was returned.";
-  el("notes").replaceChildren(...(option?.notes || []).map(n => node("li", n)));
-  const calendar = el("days");
-  calendar.replaceChildren();
-  const date = dateFormat(zones.value, {weekday:"short", day:"numeric", month:"short", year:"numeric"});
-  const time = dateFormat(zones.value, {hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
-  const days = new Map();
-  // Insertion order follows chronological start time, including simultaneous events.
-  const entries = collect(option).flatMap((column, side) => column.map(entry => ({...entry, side})));
-  entries.sort((a,b) => a.event.start.localeCompare(b.event.start) || a.event.title.localeCompare(b.event.title));
-  for (const {event, kind, side} of entries) {
-    const start = new Date(event.start), end = new Date(event.end);
-    const dateLabel = date.format(start);
-    if (!days.has(dateLabel)) days.set(dateLabel, [[], []]);
-    const card = node("li", null, "event " + kind);
-    if (kind) card.append(node("span", kind === "new" ? "New meeting" : side ? "Moved to" : "Moved from", "kind"));
-    const endLabel = dateLabel === date.format(end) ? "" : date.format(end) + " ";
-    const range = node("time", time.format(start) + " – " + endLabel + time.format(end));
-    range.dateTime = event.start;
-    card.append(range, node("b", event.title));
-    if (event.attendees.length) card.append(node("small", event.attendees.join(", "), "attendees"));
-    if (event.organizer) card.append(node("small", "Organizer: " + event.organizer));
-    days.get(dateLabel)[side].push(card);
-  }
-  for (const [dateLabel, columns] of days) {
-    const day = node("div", null, "day");
-    day.append(node("h3", dateLabel));
-    for (const [index, cards] of columns.entries()) {
-      const list = node("ol");
-      list.setAttribute("aria-label", (index ? "Proposed" : "Current") + " on " + dateLabel);
-      list.append(...(cards.length ? cards : [node("li", "—", "empty")]));
-      day.append(list);
-    }
-    calendar.append(day);
-  }
-  if (!days.size) calendar.append(node("p", "No events to display.", "empty"));
-}
-for (const header of data.headers) el("headers").append(node("th", header));
-const selectable = new Map(data.options.map(o => [o.id, o]));
-for (const row of data.comparison) {
-  const tr = node("tr");
-  for (const [i, cell] of row.cells.entries()) {
-    const td = node("td", cell ?? "—");
-    if (i === 0 && selectable.has(row.option)) {
-      const button = node("button", cell);
-      button.type = "button";
-      button.setAttribute("aria-label", "Show plan for move budget " + cell);
-      button.addEventListener("click", () => {picker.value = row.option; render();});
-      td.replaceChildren(button);
-    }
-    tr.append(td);
-  }
-  el("caps").append(tr);
-}
-el("comparison").hidden = !data.comparison.length;
-for (const control of [picker, zones, el("filter")]) control.addEventListener("change", render);
-render();
-</script></body></html>
+<script>{{PLANNER_UI_JS}}</script>
+<script>{{REVIEW_GRID_JS}}</script>
+<script>{{REVIEW_JS}}</script>
+</body></html>

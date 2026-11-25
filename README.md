@@ -33,7 +33,11 @@ schedule-plan portfolio snapshot.json --compare-moves > decision.json
 schedule-plan export-pack decision.json --snapshot snapshot.json --output squad-proposal
 ```
 
-Open `squad-proposal/plan.html` to compare the current week with the proposal. The pack also contains the source snapshot and a plain-language proposal. Anyone receiving it can read that calendar evidence, including titles and attendee names. For a standalone view of an existing single-meeting brief, run:
+Open `squad-proposal/plan.html` to see the two check-ins on the lead’s calendar in Dubai time. Use **Compare** to see the current and proposed calendars side by side. Select any meeting to inspect its full time and attendees. **Review proposal** opens text you can save for the selected schedule. The pack also contains the source snapshot and the primary proposal as plain text.
+
+![The squad-week export places the two proposed 1:1s in adjacent slots and shows who attends each.](docs/images/squad-week.png)
+
+Anyone receiving it can read that calendar evidence, including titles and attendee names. For a standalone view of an existing single-meeting brief, run:
 
 ```sh
 schedule-plan --demo > brief.json

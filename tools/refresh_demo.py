@@ -2,6 +2,7 @@
 
 import argparse
 from datetime import datetime
+from importlib.resources import files
 import json
 from pathlib import Path
 import re
@@ -27,6 +28,14 @@ def gain(previous, current):
 
 
 def render(page):
+    assets = files("scheduling_planner").joinpath("data")
+    for tag, element_id, filename in (("style", "planner-style", "planner.css"), ("script", "planner-ui", "planner-ui.js")):
+        page = replace_content(page, tag, element_id, "\n" + assets.joinpath(filename).read_text(encoding="utf-8"))
+    brand = assets.joinpath("planner-brand.html").read_text(encoding="utf-8").strip()
+    page, count = re.subn(r"<!-- planner-brand -->.*?<!-- /planner-brand -->",
+                          lambda _: f"<!-- planner-brand -->{brand}<!-- /planner-brand -->", page, flags=re.DOTALL)
+    if count != 1:
+        raise ValueError("Expected one brand fragment in the demo")
     snapshot = demo_snapshot()
     rows = []
     events = {e["id"]: e for e in snapshot["events"]}
@@ -52,11 +61,11 @@ def render(page):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="verify the committed data against new native solves")
+    parser.add_argument("--check", action="store_true", help="verify shared interface assets and committed data against new native solves")
     args = parser.parse_args()
     original = PAGE.read_text(encoding="utf-8")
     updated = render(original)
     if args.check and updated != original:
-        parser.exit(1, "Demo data is stale. Run python tools/refresh_demo.py\n")
+        parser.exit(1, "Demo interface or data is stale. Run python tools/refresh_demo.py\n")
     if not args.check:
         PAGE.write_text(updated, encoding="utf-8")
