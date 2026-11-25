@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Meeting scheduling snapshot v1",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "$ref": "#/$defs/id"
+    },
+    "schema_version": {
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
+      "description": "A version 1.1 snapshot defaults to explicit busy coverage. Unversioned input uses version 1.0."
+    },
+    "request": {
+      "$ref": "#/$defs/request"
+    },
+    "people": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/person"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "facts": {
+      "type": "object"
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "snapshot_id": {
+      "$ref": "#/$defs/id"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "objective": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:protected_moves|soft_penalty|moved_meetings|people_disrupted|start|rule:.+)$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "decisions": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        ]
+      }
+    },
+    "max_moves": {
+      "$ref": "#/$defs/nonnegative"
+    },
+    "max_states": {
+      "const": 200000,
+      "deprecated": true,
+      "description": "Recognized only for migration from v0.1."
+    },
+    "evidence_policy": {
+      "enum": [
+        "legacy",
+        "explicit"
+      ],
+      "description": "Explicit requires observed occupancy for each proposed attendance and its rest buffer. Legacy assumes complete busy data for people without a busy_coverage field."
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "people",
+    "request"
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 offset-aware timestamp at whole-minute precision.",
+      "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d(?::00(?:\\.0+)?)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$"
+    },
+    "window": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/timestamp"
+        },
+        {
+          "$ref": "#/$defs/timestamp"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonnegative": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "person": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          }
+        },
+        "possible": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          }
+        },
+        "rest_minutes": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "busy_coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          },
+          "description": "Half-open intervals for which the producer obtained all overlapping busy occurrences. An empty array signifies no observed occupancy."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "available"
+      ]
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "attendees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "duration_minutes": {
+          "$ref": "#/$defs/duration"
+        },
+        "step_minutes": {
+          "$ref": "#/$defs/duration"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "starts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attendees",
+        "duration_minutes"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "starts"
+          ]
+        },
+        {
+          "required": [
+            "windows"
+          ]
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "attendees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "duration_minutes": {
+          "$ref": "#/$defs/duration"
+        },
+        "step_minutes": {
+          "$ref": "#/$defs/duration"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "uniqueItems": true
+        },
+        "move_windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/window"
+          },
+          "minItems": 1
+        },
+        "move_tier": {
+          "enum": [
+            "ordinary",
+            "protected"
+          ]
+        },
+        "attendees_complete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set false for an event with an incomplete attendee list. Such an occurrence is fixed until the list is resolved."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "start",
+        "attendees",
+        "duration_minutes"
+      ],
+      "not": {
+        "required": [
+          "alternatives",
+          "move_windows"
+        ]
+      }
+    },
+    "rule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/id"
+        },
+        "mode": {
+          "enum": [
+            "soft",
+            "hard"
+          ]
+        },
+        "params": {
+          "type": "object"
+        },
+        "source": {
+          "$ref": "#/$defs/id"
+        },
+        "weight": {
+          "$ref": "#/$defs/duration"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "mode"
+      ],
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "hard"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "weight"
+          ]
+        }
+      }
+    }
+  }
+}

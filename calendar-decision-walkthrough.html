@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compare three group schedules</title></head><body>
+<div id="calendar-walkthrough">
+<style>
+#calendar-walkthrough{--sheet:light-dark(#fffef9,#202622);--fg:light-dark(#152d25,#edf5ef);--secondary:light-dark(#53675c,#b4c6b9);--line:light-dark(#d9e1d6,#435045);--call:light-dark(#c3ee8d,#36572a);--review:light-dark(#dedbfb,#413a61);--sync:light-dark(#ffdfb2,#58432e);background:var(--sheet);color:var(--fg);font:15px/1.4 system-ui,sans-serif;border:1px solid var(--line);border-radius:17px;padding:clamp(14px,3vw,30px);color-scheme:light dark}
+#calendar-walkthrough *{box-sizing:border-box}#calendar-walkthrough .cd-date{color:var(--secondary);font-size:13px;font-weight:650}#calendar-walkthrough h1{font:normal clamp(25px,4vw,42px)/1.12 Georgia,serif;letter-spacing:-.04em;margin:5px 0 16px}#calendar-walkthrough .cd-steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}#calendar-walkthrough button{font:inherit;color:inherit;background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:42px}#calendar-walkthrough button[aria-pressed=true],#calendar-walkthrough .cd-next{background:var(--fg);color:var(--sheet);border-color:var(--fg)}#calendar-walkthrough .cd-board{display:grid;grid-template-columns:44px 1.05fr 1fr 1fr;border-bottom:1px solid var(--line)}
+#calendar-walkthrough .cd-head{padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px;font-weight:650}#calendar-walkthrough .cd-head small{display:block;color:var(--secondary);font-weight:400}#calendar-walkthrough .cd-lane,#calendar-walkthrough .cd-clock{position:relative;height:322px}#calendar-walkthrough .cd-lane{border-left:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0 45px,var(--line) 45px 46px)}#calendar-walkthrough .cd-tick{position:absolute;font:12px/1.2 ui-monospace,monospace;color:var(--secondary);padding-top:2px}
+#calendar-walkthrough .cd-event,#calendar-walkthrough .cd-old{position:absolute;left:3px;right:3px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:12px;font-weight:650;transition:top .55s cubic-bezier(.2,.8,.3,1);overflow:hidden;white-space:nowrap}#calendar-walkthrough .cd-call{background:var(--call)}#calendar-walkthrough .cd-review{background:var(--review)}#calendar-walkthrough .cd-sync{background:var(--sync)}#calendar-walkthrough .cd-old{border:1px dashed var(--secondary);color:var(--secondary);font-weight:400}#calendar-walkthrough .cd-result{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:16px 0 4px}#calendar-walkthrough .cd-result strong{font-size:20px;display:block}#calendar-walkthrough .cd-note{color:var(--secondary);font-size:14px}#calendar-walkthrough details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}#calendar-walkthrough summary{font-weight:650}#calendar-walkthrough label{display:block;padding:6px 0}#calendar-walkthrough label input{margin-right:7px}#calendar-walkthrough .cd-gap{background:repeating-linear-gradient(135deg,var(--review) 0 4px,var(--sheet) 4px 7px);border:1px dashed var(--secondary)}#calendar-walkthrough [hidden]{display:none!important}
+@media(max-width:480px){#calendar-walkthrough .cd-board{grid-template-columns:36px 1fr 1fr 1fr}#calendar-walkthrough .cd-event,#calendar-walkthrough .cd-old{font-size:11px;padding:0 2px}#calendar-walkthrough .cd-steps{gap:4px}#calendar-walkthrough .cd-steps button{font-size:12px;padding:6px}#calendar-walkthrough .cd-head{font-size:12px}}
+@media(prefers-reduced-motion:reduce){#calendar-walkthrough .cd-event{transition:none}}
+</style>
+<div class="cd-date">TUE 1 DEC 2026 · UTC</div>
+<h1>How early can all five meet?</h1>
+<div class="cd-steps" aria-label="Scheduling options"><button aria-pressed="true">Keep meetings</button><button aria-pressed="false">Move review</button><button aria-pressed="false">Move both</button></div>
+<div class="cd-board" role="group" aria-label="Day calendar from 09:00 to 16:00 UTC">
+<div class="cd-head"></div><div class="cd-head">Group call<small>5 reviewers</small></div><div class="cd-head">Design review<small>Asha + Eli</small></div><div class="cd-head">Team sync<small>Ben + Dana</small></div>
+<div class="cd-clock"></div>
+<div class="cd-lane"><div class="cd-old" style="top:276px;height:23px" hidden>Was 15:00</div><div class="cd-event cd-call" style="top:276px;height:23px">15:00–15:30</div></div>
+<div class="cd-lane"><div class="cd-old" style="top:0;height:46px" hidden>Was 09:00</div><div class="cd-event cd-review" style="top:0;height:46px">09:00–10:00</div><div class="cd-old cd-gap" style="top:138px;height:46px" hidden>Check Eli</div></div>
+<div class="cd-lane"><div class="cd-old" style="top:0;height:23px" hidden>Was 09:00</div><div class="cd-event cd-sync" style="top:0;height:23px">09:00–09:30</div></div>
+</div>
+<div class="cd-result"><div aria-live="polite"><strong class="cd-out"></strong><span class="cd-note"></span></div><button class="cd-next"></button></div>
+<details><summary>Test a constraint</summary><label><input type="checkbox" class="cd-lock">Keep Asha and Eli’s review fixed at 09:00</label><label><input type="checkbox" class="cd-unknown">Eli’s noon calendar is unknown</label></details>
+</div>
+<script>
+{
+const root=document.getElementById("calendar-walkthrough");
+const el=s=>root.querySelector(s), buttons=[...root.querySelectorAll(".cd-steps button")], old=[...root.querySelectorAll(".cd-old:not(.cd-gap)")];
+let step=0;
+for(let i=0;i<7;i++){const t=document.createElement("span");t.className="cd-tick";t.style.top=i*46+"px";t.textContent=String(9+i).padStart(2,"0")+":00";el(".cd-clock").append(t)}
+function render(){
+const locked=el(".cd-lock").checked,gap=el(".cd-unknown").checked,actual=(locked||gap)?0:step;
+const slots=["15:00–15:30","09:30–10:00","09:00–09:30"];
+buttons.forEach((b,i)=>b.setAttribute("aria-pressed",String(step===i)));
+function place(sel,top,label){const e=el(sel);e.style.top=top+"px";e.textContent=label}
+place(".cd-call",[276,23,0][actual],slots[actual]);place(".cd-review",actual?138:0,actual?"12:00–13:00":"09:00–10:00");place(".cd-sync",actual===2?230:0,actual===2?"14:00–14:30":"09:00–09:30");
+old.forEach((o,i)=>o.hidden=i===2?actual!==2:actual===0);
+el(".cd-gap").hidden=!gap||locked||!step;
+el(".cd-out").textContent=["15:00 · No meetings moved","09:30 · 5h 30m earlier","09:00 · 30m beyond one move"][actual];
+el(".cd-note").textContent=step&&locked?"Asha and Eli’s review is fixed at 09:00. Both morning call options are blocked.":step&&gap?"Could Eli do 12:00–13:00? A yes would unlock the "+slots[step].slice(0,5)+" proposal.":["Asha’s review blocks both morning options.","Ask Asha and Eli to move their review to noon.","Ask Ben and Dana to move their sync to 14:00 as well."][actual];
+el(".cd-next").textContent=["Try moving the review →","Try moving the sync too →","Compare with one move"][step];
+}
+buttons.forEach((b,i)=>b.onclick=()=>{step=i;render()});
+el(".cd-next").onclick=()=>{step=step===2?1:step+1;render()};
+el(".cd-lock").onchange=render;el(".cd-unknown").onchange=render;render();
+}
+</script>
+<p><a href="docs/demo.html">Explore each person’s calendar and export a proposal</a></p>
+</body></html>

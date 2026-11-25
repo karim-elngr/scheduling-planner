@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.1",
+  "snapshot_id": "decision-review-v1",
+  "metadata": {
+    "description": "Synthetic five-reviewer decision. All times UTC. Busy feeds include adjacent commitments."
+  },
+  "evidence_policy": "explicit",
+  "request": {
+    "attendees": [
+      "Asha",
+      "Ben",
+      "Jules",
+      "Mei",
+      "Rami"
+    ],
+    "duration_minutes": 30,
+    "starts": [
+      "2026-12-01T09:00Z",
+      "2026-12-01T09:30Z",
+      "2026-12-01T15:00Z"
+    ]
+  },
+  "people": {
+    "Asha": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Ben": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Jules": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Mei": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Rami": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Eli": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    },
+    "Dana": {
+      "available": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-01T08:00Z",
+          "2026-12-01T18:00Z"
+        ]
+      ]
+    }
+  },
+  "events": [
+    {
+      "id": "design-review",
+      "attendees": [
+        "Asha",
+        "Eli"
+      ],
+      "start": "2026-12-01T09:00Z",
+      "duration_minutes": 60,
+      "alternatives": [
+        "2026-12-01T12:00Z"
+      ]
+    },
+    {
+      "id": "team-sync",
+      "attendees": [
+        "Ben",
+        "Dana"
+      ],
+      "start": "2026-12-01T09:00Z",
+      "duration_minutes": 30,
+      "alternatives": [
+        "2026-12-01T14:00Z"
+      ]
+    }
+  ],
+  "max_moves": 2
+}

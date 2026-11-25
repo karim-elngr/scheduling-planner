@@ -1,0 +1,747 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scheduling Planner output v1.0",
+  "description": "A raw solver result, complete advisory report, or compact briefing.",
+  "oneOf": [{"$ref": "#/$defs/result"}, {"$ref": "#/$defs/advice"}, {"$ref": "#/$defs/brief"}],
+  "$defs": {
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{64}$"},
+    "instant": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}Z$"},
+    "metrics": {
+      "type": "object",
+      "required": ["protected_moves", "moved_meetings", "people_disrupted", "soft_penalty"],
+      "properties": {
+        "protected_moves": {"type": "integer", "minimum": 0},
+        "moved_meetings": {"type": "integer", "minimum": 0},
+        "people_disrupted": {"type": "integer", "minimum": 0},
+        "soft_penalty": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "origin": {
+      "type": "object",
+      "required": ["evidence_mode", "ranking"],
+      "properties": {
+        "evidence_mode": {"enum": ["verified", "optimistic"]},
+        "ranking": {"enum": ["preferred", "earliest", "least_disruption"]}
+      },
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "required": ["metric", "status", "proven"],
+      "properties": {
+        "metric": {"type": "string", "minLength": 1},
+        "status": {"enum": ["CONSTANT", "LOWER_BOUND", "TIME_LIMIT", "OPTIMAL", "FEASIBLE", "UNKNOWN", "INFEASIBLE"]},
+        "proven": {"type": "boolean"},
+        "value": {"type": "integer"},
+        "best_bound": {"type": "integer"},
+        "branches": {"type": "integer", "minimum": 0},
+        "conflicts": {"type": "integer", "minimum": 0},
+        "wall_seconds": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false,
+      "allOf": [{"if": {"properties": {"proven": {"const": true}}}, "then": {"required": ["value", "best_bound"]}}]
+    },
+    "proof": {
+      "type": "object",
+      "required": ["order", "status", "stages", "witness"],
+      "properties": {
+        "order": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope"]},
+        "stages": {"type": "array", "items": {"$ref": "#/$defs/stage"}},
+        "witness": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["origin", "scores"],
+              "properties": {
+                "origin": {"$ref": "#/$defs/origin"},
+                "scores": {"type": "object", "additionalProperties": {"type": "integer"}}
+              },
+              "additionalProperties": false
+            },
+            {"type": "null"}
+          ]
+        },
+        "basis": {"type": "string"},
+        "derived_from": {"$ref": "#/$defs/origin"}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["optimal", "best_found"]}}},
+          "then": {"properties": {"witness": {"type": "object"}}},
+          "else": {"properties": {"witness": {"type": "null"}}}
+        }
+      ]
+    },
+    "ranking_proofs": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"enum": ["preferred", "earliest", "least_disruption"]},
+      "additionalProperties": {"$ref": "#/$defs/proof"}
+    },
+    "coord_move": {
+      "type": "object",
+      "required": ["event_id", "from_start", "to_start", "to_end", "attendees"],
+      "properties": {
+        "event_id": {"type": "string", "minLength": 1},
+        "from_start": {"$ref": "#/$defs/instant"},
+        "to_start": {"$ref": "#/$defs/instant"},
+        "to_end": {"$ref": "#/$defs/instant"},
+        "attendees": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+      },
+      "additionalProperties": false
+    },
+    "move": {
+      "type": "object",
+      "required": ["event_id", "from_start", "to_start", "to_end"],
+      "properties": {
+        "event_id": {"type": "string", "minLength": 1},
+        "from_start": {"$ref": "#/$defs/instant"},
+        "to_start": {"$ref": "#/$defs/instant"},
+        "to_end": {"$ref": "#/$defs/instant"}
+      },
+      "additionalProperties": false
+    },
+    "unresolved": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["person", "event_id", "start", "end"],
+          "properties": {
+            "person": {"type": "string", "minLength": 1},
+            "event_id": {"type": "string", "minLength": 1},
+            "start": {"$ref": "#/$defs/instant"},
+            "end": {"$ref": "#/$defs/instant"},
+            "evidence": {"const": "busy_coverage"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["rule_id", "kind", "mode", "question"],
+          "properties": {
+            "rule_id": {"type": "string", "minLength": 1},
+            "kind": {"type": "string", "minLength": 1},
+            "mode": {"enum": ["hard", "soft"]},
+            "source": {"type": "string", "minLength": 1},
+            "question": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "rule_note": {
+      "type": "object",
+      "required": ["rule_id", "kind", "mode", "reason", "units", "weight", "penalty"],
+      "properties": {
+        "rule_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "mode": {"enum": ["hard", "soft"]},
+        "source": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "units": {"type": "integer", "minimum": 0},
+        "weight": {"type": "integer", "minimum": 1},
+        "penalty": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "required": [
+        "start",
+        "end",
+        "moves",
+        "decisions",
+        "metrics",
+        "unresolved",
+        "availability",
+        "rule_notes",
+        "rule_penalties"
+      ],
+      "properties": {
+        "start": {"$ref": "#/$defs/instant"},
+        "end": {"$ref": "#/$defs/instant"},
+        "moves": {"type": "array", "items": {"$ref": "#/$defs/move"}},
+        "decisions": {"type": "object", "additionalProperties": {"type": ["integer", "string", "boolean"]}},
+        "metrics": {"$ref": "#/$defs/metrics"},
+        "unresolved": {"type": "array", "items": {"$ref": "#/$defs/unresolved"}},
+        "availability": {"enum": ["verified", "conditional"]},
+        "rule_notes": {"type": "array", "items": {"$ref": "#/$defs/rule_note"}},
+        "rule_penalties": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      },
+      "additionalProperties": false
+    },
+    "assumption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "rule_id", "kind"],
+          "properties": {
+            "type": {"enum": ["hard_rule", "verified_rule"]},
+            "rule_id": {"type": "string", "minLength": 1},
+            "kind": {"type": "string", "minLength": 1},
+            "source": {"type": "string", "minLength": 1},
+            "question": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "kind", "person", "event_id"],
+          "properties": {
+            "type": {"const": "verified_calendar"},
+            "kind": {"const": "calendar"},
+            "person": {"type": "string", "minLength": 1},
+            "event_id": {"type": "string", "minLength": 1},
+            "evidence": {"const": "busy_coverage"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "literal", "variable", "value"],
+          "properties": {
+            "type": {"const": "extension_assumption"},
+            "literal": {"type": "integer"},
+            "variable": {"type": "string"},
+            "value": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "diagnosis": {
+      "type": "object",
+      "required": ["evidence_mode", "assumptions", "minimality", "status"],
+      "properties": {
+        "evidence_mode": {"enum": ["verified", "optimistic"]},
+        "assumptions": {"type": "array", "items": {"$ref": "#/$defs/assumption"}},
+        "minimality": {"const": "not_established"},
+        "status": {"enum": ["no_diagnostic_time", "base_infeasible", "sufficient_core"]},
+        "native_status": {"type": "string"},
+        "branches": {"type": "integer", "minimum": 0},
+        "conflicts": {"type": "integer", "minimum": 0},
+        "wall_seconds": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "group": {
+      "type": "object",
+      "required": ["status", "proofs"],
+      "properties": {
+        "status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope"]},
+        "proofs": {"$ref": "#/$defs/ranking_proofs"},
+        "preferred": {"anyOf": [{"$ref": "#/$defs/plan"}, {"type": "null"}]},
+        "earliest": {"anyOf": [{"$ref": "#/$defs/plan"}, {"type": "null"}]},
+        "least_disruption": {"anyOf": [{"$ref": "#/$defs/plan"}, {"type": "null"}]},
+        "infeasibility": {"$ref": "#/$defs/diagnosis"}
+      },
+      "additionalProperties": false,
+      "anyOf": [{"required": ["preferred"]}, {"required": ["earliest"]}, {"required": ["least_disruption"]}]
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "snapshot_id",
+        "snapshot_sha256",
+        "evidence_policy",
+        "max_moves",
+        "objective",
+        "rankings",
+        "time_limit_seconds",
+        "workers",
+        "constraints",
+        "decision_domains",
+        "locked_incomplete_rosters",
+        "request_start_count",
+        "request_starts_after_window_pruning",
+        "event_count",
+        "movable_event_count",
+        "time_precision",
+        "migration_notes"
+      ],
+      "properties": {
+        "snapshot_id": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "evidence_policy": {"enum": ["legacy", "explicit"]},
+        "max_moves": {"type": "integer", "minimum": 0},
+        "objective": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "rankings": {
+          "type": "array",
+          "items": {"enum": ["preferred", "earliest", "least_disruption"]},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "time_limit_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "workers": {"type": "integer", "minimum": 1},
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "mode"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "kind": {"type": "string", "minLength": 1},
+              "mode": {"enum": ["hard", "soft"]},
+              "source": {"type": "string", "minLength": 1},
+              "weight": {"type": "integer", "minimum": 1},
+              "params": {"type": "object"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "decision_domains": {
+          "type": "object",
+          "additionalProperties": {"type": "array", "items": {"type": ["integer", "string", "boolean"]}, "minItems": 1}
+        },
+        "locked_incomplete_rosters": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "request_start_count": {"type": "integer", "minimum": 0},
+        "request_starts_after_window_pruning": {"type": "integer", "minimum": 0},
+        "event_count": {"type": "integer", "minimum": 0},
+        "movable_event_count": {"type": "integer", "minimum": 0},
+        "time_precision": {"type": "string", "minLength": 1},
+        "migration_notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "statistics": {
+      "type": "object",
+      "required": [
+        "model_build_seconds",
+        "search_seconds",
+        "elapsed_seconds",
+        "base_variables",
+        "base_constraints",
+        "native_solves",
+        "branches",
+        "conflicts",
+        "native_wall_seconds"
+      ],
+      "properties": {
+        "model_build_seconds": {"type": "number", "minimum": 0},
+        "search_seconds": {"type": "number", "minimum": 0},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "base_variables": {"type": "integer", "minimum": 0},
+        "base_constraints": {"type": "integer", "minimum": 0},
+        "native_solves": {"type": "integer", "minimum": 0},
+        "branches": {"type": "integer", "minimum": 0},
+        "conflicts": {"type": "integer", "minimum": 0},
+        "native_wall_seconds": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "result_version",
+        "planner_version",
+        "backend",
+        "statistics",
+        "scope",
+        "search_status",
+        "verified",
+        "optimistic"
+      ],
+      "properties": {
+        "result_version": {"const": "1.0"},
+        "planner_version": {"type": "string", "minLength": 1},
+        "backend": {
+          "type": "object",
+          "required": ["name", "version"],
+          "properties": {"name": {"const": "ortools.cp_sat"}, "version": {"type": "string", "minLength": 1}},
+          "additionalProperties": false
+        },
+        "statistics": {"$ref": "#/$defs/statistics"},
+        "scope": {"$ref": "#/$defs/scope"},
+        "search_status": {"enum": ["complete", "limit_reached"]},
+        "verified": {"$ref": "#/$defs/group"},
+        "optimistic": {"$ref": "#/$defs/group"}
+      },
+      "additionalProperties": false
+    },
+    "question": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["plan_id", "text", "type", "person", "event_id", "start", "end", "rest_minutes"],
+          "properties": {
+            "plan_id": {"$ref": "#/$defs/plan_id"},
+            "text": {"type": "string", "minLength": 1},
+            "type": {"const": "availability"},
+            "person": {"type": "string", "minLength": 1},
+            "event_id": {"type": "string", "minLength": 1},
+            "start": {"$ref": "#/$defs/instant"},
+            "end": {"$ref": "#/$defs/instant"},
+            "rest_minutes": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["plan_id", "text", "type", "person", "event_id", "start", "end", "evidence"],
+          "properties": {
+            "plan_id": {"$ref": "#/$defs/plan_id"},
+            "text": {"type": "string", "minLength": 1},
+            "type": {"const": "busy_coverage"},
+            "person": {"type": "string", "minLength": 1},
+            "event_id": {"type": "string", "minLength": 1},
+            "start": {"$ref": "#/$defs/instant"},
+            "end": {"$ref": "#/$defs/instant"},
+            "evidence": {"const": "busy_coverage"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["plan_id", "text", "type", "rule_id", "kind", "mode", "question"],
+          "properties": {
+            "plan_id": {"$ref": "#/$defs/plan_id"},
+            "text": {"type": "string", "minLength": 1},
+            "type": {"const": "rule"},
+            "rule_id": {"type": "string", "minLength": 1},
+            "kind": {"type": "string", "minLength": 1},
+            "mode": {"enum": ["hard", "soft"]},
+            "source": {"type": "string", "minLength": 1},
+            "question": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "confirmation_reason": {
+      "type": "object",
+      "required": [
+        "evidence_mode",
+        "ranking",
+        "proof_status",
+        "max_moves",
+        "plan_id",
+        "baseline_id",
+        "metric",
+        "reason"
+      ],
+      "properties": {
+        "evidence_mode": {"const": "optimistic"},
+        "ranking": {"enum": ["preferred", "earliest", "least_disruption"]},
+        "proof_status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope"]},
+        "max_moves": {"type": "integer", "minimum": 0},
+        "plan_id": {"$ref": "#/$defs/plan_id"},
+        "baseline_id": {"anyOf": [{"$ref": "#/$defs/plan_id"}, {"type": "null"}]},
+        "baseline_max_moves": {"type": "integer", "minimum": 0},
+        "metric": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "gain": {"type": "integer", "minimum": 1},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["plan_id", "kind", "text", "heuristic"],
+      "properties": {
+        "plan_id": {"$ref": "#/$defs/plan_id"},
+        "kind": {"enum": ["note", "question"]},
+        "text": {"type": "string", "minLength": 1},
+        "heuristic": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "comparison": {
+      "type": "object",
+      "required": [
+        "minutes_earlier_than_primary",
+        "minutes_earlier_than_earliest_verified",
+        "improves_on_best_verified_objective",
+        "first_improved_objective_metric",
+        "metric_deltas_from_primary"
+      ],
+      "properties": {
+        "minutes_earlier_than_primary": {"type": "integer"},
+        "minutes_earlier_than_earliest_verified": {"type": "integer"},
+        "improves_on_best_verified_objective": {"type": "boolean"},
+        "first_improved_objective_metric": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "metric_deltas_from_primary": {"type": "object", "additionalProperties": {"type": "integer"}}
+      },
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "required": ["id", "role", "plan", "moves_to_coordinate", "proofs", "comparison"],
+      "properties": {
+        "id": {"$ref": "#/$defs/plan_id"},
+        "role": {"enum": ["primary", "verified_alternative", "conditional", "move_tradeoff"]},
+        "plan": {"$ref": "#/$defs/plan"},
+        "moves_to_coordinate": {"type": "array", "items": {"$ref": "#/$defs/coord_move"}},
+        "proofs": {
+          "type": "object",
+          "propertyNames": {"enum": ["verified", "optimistic"]},
+          "additionalProperties": {"$ref": "#/$defs/ranking_proofs"}
+        },
+        "comparison": {"anyOf": [{"$ref": "#/$defs/comparison"}, {"type": "null"}]},
+        "comparison_caps": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+        "confirmation_reasons": {"type": "array", "items": {"$ref": "#/$defs/confirmation_reason"}}
+      },
+      "additionalProperties": false
+    },
+    "brief_cap": {
+      "type": "object",
+      "required": [
+        "cap",
+        "status",
+        "plan_id",
+        "start",
+        "moves",
+        "previous_cap",
+        "minutes_gained",
+        "gain_proven",
+        "gain_basis",
+        "frontier"
+      ],
+      "properties": {
+        "cap": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope", "not_run"]},
+        "plan_id": {"anyOf": [{"$ref": "#/$defs/plan_id"}, {"type": "null"}]},
+        "start": {"anyOf": [{"$ref": "#/$defs/instant"}, {"type": "null"}]},
+        "moves": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "previous_cap": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "minutes_gained": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "gain_proven": {"type": "boolean"},
+        "gain_basis": {"anyOf": [{"enum": ["proved_starts", "observed_starts"]}, {"type": "null"}]},
+        "frontier": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "full_cap": {
+      "type": "object",
+      "required": [
+        "cap",
+        "status",
+        "plan_id",
+        "start",
+        "moves",
+        "previous_cap",
+        "minutes_gained",
+        "gain_proven",
+        "gain_basis",
+        "frontier",
+        "proof_status",
+        "proof",
+        "snapshot_sha256"
+      ],
+      "properties": {
+        "cap": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope", "not_run"]},
+        "plan_id": {"anyOf": [{"$ref": "#/$defs/plan_id"}, {"type": "null"}]},
+        "start": {"anyOf": [{"$ref": "#/$defs/instant"}, {"type": "null"}]},
+        "moves": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "previous_cap": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "minutes_gained": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "gain_proven": {"type": "boolean"},
+        "gain_basis": {"anyOf": [{"enum": ["proved_starts", "observed_starts"]}, {"type": "null"}]},
+        "frontier": {"type": "boolean"},
+        "proof_status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope", "not_run"]},
+        "proof": {"anyOf": [{"$ref": "#/$defs/proof"}, {"type": "null"}]},
+        "snapshot_sha256": {"anyOf": [{"type": "string", "pattern": "^[0-9a-f]{64}$"}, {"type": "null"}]},
+        "witness": {"$ref": "#/$defs/plan"}
+      },
+      "additionalProperties": false
+    },
+    "full_move_comparison": {
+      "type": "object",
+      "required": ["maximum_cap", "movable_event_count", "time_limit_seconds", "sampled", "complete", "caps"],
+      "properties": {
+        "maximum_cap": {"type": "integer", "minimum": 0},
+        "movable_event_count": {"type": "integer", "minimum": 0},
+        "time_limit_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "sampled": {"type": "boolean"},
+        "complete": {"type": "boolean"},
+        "caps": {"type": "array", "items": {"$ref": "#/$defs/full_cap"}, "minItems": 1}
+      },
+      "additionalProperties": false
+    },
+    "brief_move_comparison": {
+      "type": "object",
+      "required": ["maximum_cap", "movable_event_count", "time_limit_seconds", "sampled", "complete", "caps"],
+      "properties": {
+        "maximum_cap": {"type": "integer", "minimum": 0},
+        "movable_event_count": {"type": "integer", "minimum": 0},
+        "time_limit_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "sampled": {"type": "boolean"},
+        "complete": {"type": "boolean"},
+        "caps": {"type": "array", "items": {"$ref": "#/$defs/brief_cap"}, "minItems": 1}
+      },
+      "additionalProperties": false
+    },
+    "advice_details": {
+      "type": "object",
+      "required": [
+        "status",
+        "primary_id",
+        "questions",
+        "question_source",
+        "annotations",
+        "primary_source",
+        "primary_selection",
+        "options",
+        "profile",
+        "min_gain_minutes",
+        "guidance"
+      ],
+      "properties": {
+        "status": {"enum": ["verified_option", "conditional_only", "infeasible_in_scope", "no_solution_found"]},
+        "primary_id": {"anyOf": [{"$ref": "#/$defs/plan_id"}, {"type": "null"}]},
+        "questions": {"type": "array", "items": {"$ref": "#/$defs/question"}},
+        "question_source": {"anyOf": [{"$ref": "#/$defs/confirmation_reason"}, {"type": "null"}]},
+        "annotations": {"type": "array", "items": {"$ref": "#/$defs/annotation"}},
+        "primary_source": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["evidence_mode", "ranking"],
+              "properties": {
+                "evidence_mode": {"enum": ["verified", "optimistic"]},
+                "ranking": {"enum": ["preferred", "earliest", "least_disruption"]},
+                "max_moves": {"type": "integer", "minimum": 0},
+                "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+              },
+              "additionalProperties": false
+            },
+            {"type": "null"}
+          ]
+        },
+        "primary_selection": {
+          "enum": [
+            "no_verified_plan",
+            "verified_preferred",
+            "fallback_available_witness",
+            "fallback_requested_ranking",
+            "verified_comparison_scope"
+          ]
+        },
+        "options": {"type": "array", "items": {"$ref": "#/$defs/option"}},
+        "profile": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "min_gain_minutes": {"type": "integer", "minimum": 0},
+        "guidance": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "gather": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "solve": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "explain": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        },
+        "move_comparison": {"$ref": "#/$defs/full_move_comparison"}
+      },
+      "additionalProperties": false
+    },
+    "advice": {
+      "type": "object",
+      "required": ["output_version", "planner_version", "result", "advice"],
+      "properties": {
+        "output_version": {"const": "1.0"},
+        "planner_version": {"type": "string", "minLength": 1},
+        "result": {"$ref": "#/$defs/result"},
+        "advice": {"$ref": "#/$defs/advice_details"}
+      },
+      "additionalProperties": false
+    },
+    "brief_option": {
+      "type": "object",
+      "required": [
+        "id",
+        "role",
+        "availability",
+        "start",
+        "end",
+        "metrics",
+        "moves",
+        "decisions",
+        "unresolved_count",
+        "proof"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/plan_id"},
+        "role": {"enum": ["primary", "verified_alternative", "conditional", "move_tradeoff"]},
+        "availability": {"enum": ["verified", "conditional"]},
+        "start": {"$ref": "#/$defs/instant"},
+        "end": {"$ref": "#/$defs/instant"},
+        "metrics": {"$ref": "#/$defs/metrics"},
+        "moves": {"type": "array", "items": {"$ref": "#/$defs/coord_move"}},
+        "decisions": {"type": "object", "additionalProperties": {"type": ["integer", "string", "boolean"]}},
+        "unresolved_count": {"type": "integer", "minimum": 0},
+        "proof": {
+          "type": "object",
+          "required": ["evidence_mode", "ranking", "max_moves", "status"],
+          "properties": {
+            "evidence_mode": {"enum": ["verified", "optimistic"]},
+            "ranking": {"enum": ["preferred", "earliest", "least_disruption"]},
+            "max_moves": {"type": "integer", "minimum": 0},
+            "status": {"enum": ["optimal", "best_found", "unknown", "infeasible_in_scope"]},
+            "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        },
+        "why_confirm": {"type": "string", "minLength": 1},
+        "minutes_earlier_than_primary": {"type": "integer"},
+        "rule_penalties": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      },
+      "additionalProperties": false
+    },
+    "brief": {
+      "type": "object",
+      "required": [
+        "output_version",
+        "planner_version",
+        "view",
+        "status",
+        "primary_id",
+        "questions",
+        "question_source",
+        "annotations",
+        "scope",
+        "options",
+        "move_comparison",
+        "diagnosis"
+      ],
+      "properties": {
+        "output_version": {"const": "1.0"},
+        "planner_version": {"type": "string", "minLength": 1},
+        "view": {"const": "brief"},
+        "status": {"enum": ["verified_option", "conditional_only", "infeasible_in_scope", "no_solution_found"]},
+        "primary_id": {"anyOf": [{"$ref": "#/$defs/plan_id"}, {"type": "null"}]},
+        "questions": {"type": "array", "items": {"$ref": "#/$defs/question"}},
+        "question_source": {"anyOf": [{"$ref": "#/$defs/confirmation_reason"}, {"type": "null"}]},
+        "annotations": {"type": "array", "items": {"$ref": "#/$defs/annotation"}},
+        "scope": {
+          "type": "object",
+          "required": ["snapshot_id", "snapshot_sha256", "evidence_policy", "max_moves", "objective", "rankings"],
+          "properties": {
+            "snapshot_id": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "evidence_policy": {"enum": ["legacy", "explicit"]},
+            "max_moves": {"type": "integer", "minimum": 0},
+            "objective": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+            "rankings": {
+              "type": "array",
+              "items": {"enum": ["preferred", "earliest", "least_disruption"]},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "locked_incomplete_rosters": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        },
+        "options": {"type": "array", "items": {"$ref": "#/$defs/brief_option"}},
+        "move_comparison": {"anyOf": [{"$ref": "#/$defs/brief_move_comparison"}, {"type": "null"}]},
+        "diagnosis": {
+          "type": "object",
+          "propertyNames": {"enum": ["verified", "optimistic"]},
+          "additionalProperties": {"$ref": "#/$defs/diagnosis"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

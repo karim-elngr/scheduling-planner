@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why wait until 15:00? · Scheduling Planner</title>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f4f5f0;
+  --sheet: #fffefb;
+  --ink: #19352d;
+  --muted: #55695f;
+  --line: #ced8cf;
+  --tint: #eaf0e8;
+  --deep: #164b3e;
+  --lime: #d1eda1;
+  --review: #e1dbf6;
+  --violet: #544775;
+  --sync: #f9dfb9;
+  --bronze: #704718;
+  --amber: #f6eac8;
+  --row: 49px;
+  --day: 343px;
+  --head: 66px;
+  font: 100%/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.shell {
+  max-width: 1460px;
+  margin: auto;
+  padding: 0 clamp(14px, 3.6vw, 58px);
+}
+button, summary, label {
+  font: inherit;
+}
+button, summary {
+  cursor: pointer;
+}
+button {
+  color: inherit;
+}
+a {
+  color: var(--deep);
+}
+button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 3px solid #a04d14;
+  outline-offset: 3px;
+}
+button:disabled {
+  cursor: default;
+}
+h1, h2, h3, p, figure, dl, dd, fieldset {
+  margin: 0;
+}
+h1, h2, h3 {
+  line-height: 1.15;
+}
+button {
+  border: 0;
+}
+h1 {
+  font: normal clamp(2.4rem, 5.2vw, 4.65rem)/1.03 Georgia, serif;
+  letter-spacing: -.062em;
+}
+
+/* Page header and time choices */
+.brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 720;
+  letter-spacing: -.035em;
+}
+.mark {
+  display: grid;
+  grid-template-columns: repeat(3, 3px);
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  background: var(--deep);
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.mark i {
+  height: 9px;
+  background: var(--lime);
+  border-radius: 2px;
+}
+.mark i:nth-child(2) {
+  height: 16px;
+}
+.date {
+  font-size: .86rem;
+  color: var(--muted);
+  font-weight: 550;
+}
+.hero {
+  padding: 29px 0 19px;
+}
+.hero p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 1rem;
+}
+.picks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.candidate {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 11px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  text-align: left;
+  min-height: 60px;
+}
+.candidate:hover {
+  border-color: #668577;
+}
+.candidate[aria-pressed=true] {
+  background: var(--deep);
+  color: #fff;
+  border-color: var(--deep);
+}
+.candidate-time {
+  font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+  letter-spacing: -.05em;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.candidate-state {
+  font-size: .75rem;
+  font-weight: 650;
+  line-height: 1.2;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #efeae2;
+  color: #5b4e3d;
+}
+.candidate[data-state=clear] .candidate-state {
+  background: #e1edcf;
+  color: #304a2b;
+}
+.candidate[data-state=blocked] .candidate-state {
+  background: #f5dbd5;
+  color: #783827;
+}
+.candidate[data-state=conditional] .candidate-state {
+  background: #fae7bb;
+  color: #684611;
+}
+.candidate[aria-pressed=true] .candidate-state {
+  background: #ffffff20;
+  color: white;
+}
+
+/* Calendar and attendee lanes */
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, .38fr);
+  align-items: start;
+  gap: 14px;
+}
+.calendar, .inspect, .handoff, .reference {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-width: 0;
+}
+.cal-top {
+  padding: 16px 18px 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cal-top h2 {
+  font-size: 1.08rem;
+}
+.cal-top span {
+  color: var(--muted);
+  font-size: .77rem;
+}
+.calendar-core {
+  padding: 7px 12px 0;
+}
+.roster-groups, .calendar-grid {
+  display: grid;
+  grid-template-columns: 43px repeat(7, minmax(0, 1fr));
+}
+.roster-groups {
+  margin-top: 6px;
+}
+.roster-groups span {
+  font-size: .67rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 720;
+  color: var(--muted);
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.roster-groups span:first-child {
+  grid-column: 2/span 5;
+}
+.roster-groups span:last-child {
+  grid-column: 7/span 2;
+  background: var(--tint);
+}
+.clock-head, .person-head {
+  height: var(--head);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.person-name {
+  font-size: .84rem;
+  font-weight: 700;
+}
+.person-state {
+  font-size: .67rem;
+  color: var(--muted);
+  line-height: 1.1;
+}
+.person[data-activity=conflict] .person-state {
+  color: #8b3e25;
+  font-weight: 700;
+}
+.person[data-activity=linked] .person-state {
+  color: var(--violet);
+  font-weight: 700;
+}
+.person[data-activity=gap] .person-state {
+  color: #875810;
+  font-weight: 700;
+}
+.clock-head {
+  color: var(--muted);
+  font-size: .7rem;
+  align-items: flex-start;
+}
+.clock, .day {
+  position: relative;
+  height: var(--day);
+}
+.tick {
+  position: absolute;
+  right: 5px;
+  font: .67rem ui-monospace, monospace;
+  color: var(--muted);
+  transform: translateY(1px);
+}
+.day {
+  border-left: 1px solid var(--line);
+  background: repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px var(--row));
+}
+.person[data-outside=true] .day {
+  background-color: #f7f8f3;
+}
+.person[data-person=Eli] {
+  border-left: 2px solid #b9c6ba;
+}
+.slot, .event, .ghost, .evidence-cell {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 4px;
+  transition: top .42s cubic-bezier(.2, .75, .25, 1);
+  font-size: .69rem;
+  line-height: 1.15;
+  min-width: 0;
+}
+.slot {
+  height: calc(var(--row)/2);
+  background: #dcecc8;
+  border: 1px solid #a2bf7c;
+  padding: 3px 2px;
+  color: #345226;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 650;
+}
+.slot[data-state=overlap] {
+  z-index: 1;
+  left: 0;
+  right: auto;
+  width: 6px;
+  border-radius: 2px;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, #ffd7ca 0 3px, #f6bba9 3px 5px);
+  border-color: #bc694e;
+}
+.slot[data-origin=true] {
+  left: 12px;
+  z-index: 1;
+  pointer-events: none;
+}
+.slot[data-origin=true]~.ghost {
+  font-size: 0;
+}
+.slot[data-state=preview] {
+  background: var(--lime);
+  border-color: #7a9e57;
+}
+.ghost {
+  left: 0;
+  right: 0;
+  border: 1px dashed #9c9891;
+  background: repeating-linear-gradient(135deg, transparent 0 4px, #e6e2d9 4px 5px);
+  color: #646657;
+  padding: 2px;
+  overflow: hidden;
+}
+
+/* Existing meetings and constraints */
+.event {
+  color: #2e2944;
+  background: var(--review);
+  border-left: 3px solid #897bb0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1px;
+  padding: 3px 2px;
+  overflow: visible;
+}
+.event[data-kind=sync] {
+  color: #573a1b;
+  background: var(--sync);
+  border-color: #b78448;
+}
+.event[data-blocking=true] {
+  box-shadow: inset 0 0 0 2px #a55137;
+}
+.event-name {
+  font-weight: 650;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.event .lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  position: relative;
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+}
+.lock input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.lock:has(input:focus-visible) {
+  outline: 3px solid #a04d14;
+}
+.lock svg {
+  pointer-events: none;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lock:has(input:checked) {
+  background: #302a3a;
+  color: white;
+}
+.lock input:checked~.open-lock, .lock input:not(:checked)~.closed-lock {
+  display: none;
+}
+.evidence-cell {
+  background: transparent;
+  color: #41584d;
+  top: calc(var(--row)*3);
+  height: var(--row);
+  border: 1px dashed #8da394;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 2px 1px;
+  font-size: .62rem;
+}
+.evidence-cell[data-missing=true] {
+  background: repeating-linear-gradient(135deg, #f7eccd 0 4px, #e6d29c 4px 6px);
+  border-color: #a28440;
+  color: #634711;
+}
+.person[data-person=Eli] .event[data-moved=true] {
+  height: calc(var(--row) - 17px) !important;
+  pointer-events: none;
+}
+.legend {
+  display: flex;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding: 10px 14px;
+  font-size: .72rem;
+  color: var(--muted);
+}
+.key {
+  display: inline-block;
+  vertical-align: middle;
+  width: 13px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 2px;
+}
+.key.target {
+  background: var(--lime);
+  border: 1px solid #7a9e57;
+}
+.key.old {
+  border: 1px dashed #9c9891;
+}
+.mobile-free {
+  display: none;
+}
+.evidence {
+  border-top: 1px solid var(--line);
+  padding: 10px 14px;
+  font-size: .8rem;
+}
+.evidence summary {
+  font-weight: 620;
+}
+.evidence label {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  margin: 8px 0;
+}
+.evidence p, .details-note {
+  color: var(--muted);
+}
+
+/* Decision, comparison and handoff */
+.inspect {
+  padding: clamp(14px, 1.8vw, 24px);
+  border-top: 4px solid var(--deep);
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: .73rem;
+  color: var(--deep);
+}
+.status:before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4f8d54;
+}
+.status[data-state=conditional]:before, .status[data-state=conflict]:before {
+  background: #c39337;
+}
+.status[data-state=blocked]:before {
+  background: #a34b36;
+}
+.inspect h2 {
+  margin: 10px 0 5px;
+  font: normal clamp(1.7rem, 3vw, 2.7rem)/1.06 Georgia, serif;
+  letter-spacing: -.045em;
+}
+.inspect p {
+  font-size: .89rem;
+  color: #43594e;
+}
+.inspect ul, .handoff ul {
+  padding: 0;
+  list-style: none;
+  margin: 12px 0;
+}
+.inspect li, .handoff li {
+  border-top: 1px solid var(--line);
+  padding: 7px 0;
+  font-size: .84rem;
+}
+.metric {
+  margin-top: 12px;
+  color: var(--deep);
+  font-weight: 720;
+}
+.total-impact {
+  display: block;
+  margin-top: 2px;
+  font-weight: 530;
+  font-size: .83rem;
+  color: var(--muted);
+}
+.btn.compare {
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.inspect .question {
+  margin: 11px 0;
+  background: var(--amber);
+  padding: 10px;
+  border-radius: 6px;
+  color: #604512;
+}
+.btn {
+  min-height: 41px;
+  padding: 8px 11px;
+  border-radius: 7px;
+  font-size: .84rem;
+  font-weight: 660;
+  background: var(--tint);
+  color: var(--ink);
+}
+.btn.primary {
+  background: var(--deep);
+  color: white;
+}
+.buttons {
+  display: grid;
+  gap: 7px;
+  margin-top: 15px;
+}
+.handoff {
+  margin-top: 16px;
+  padding: 20px;
+}
+.handoff h2 {
+  font-size: 1.45rem;
+}
+.handoff-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.handoff .status {
+  margin-top: 8px;
+}
+.handoff p {
+  font-size: .9rem;
+}
+.export {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.export code, pre {
+  font-family: ui-monospace, monospace;
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+pre {
+  max-height: 16rem;
+  overflow: auto;
+  background: var(--tint);
+  padding: 12px;
+}
+.reference {
+  margin: 15px 0;
+  padding: 12px 15px;
+  color: var(--muted);
+  font-size: .84rem;
+}
+.reference summary {
+  font-weight: 620;
+}
+.reference table {
+  margin-top: 9px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.reference th, .reference td {
+  padding: 4px 15px 4px 0;
+}
+.reference p {
+  margin-top: 8px;
+}
+footer {
+  padding: 8px 0 24px;
+  color: var(--muted);
+  font-size: .78rem;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.close {
+  font-size: 1rem;
+  min-width: 36px;
+}
+.day-end {
+  margin: 1px 0 3px;
+  color: var(--muted);
+  font: .67rem ui-monospace, monospace;
+}
+[hidden] {
+  display: none !important;
+}
+
+/* Small screens and interaction preferences */
+@media (max-width: 1050px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, .41fr);
+  }
+  .calendar-core {
+    padding: 7px 6px 0;
+  }
+  .calendar-grid, .roster-groups {
+    grid-template-columns: 35px repeat(7, minmax(0, 1fr));
+  }
+  .event-name {
+    font-size: .64rem;
+  }
+}
+@media (max-width: 840px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inspect {
+    padding: 16px;
+  }
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .hero {
+    padding: 19px 0 14px;
+  }
+  .picks {
+    margin-bottom: 12px;
+  }
+}
+@media (max-width: 580px) {
+  :root {
+    --row: 45px;
+    --day: 315px;
+    --head: 47px;
+  }
+  .calendar-grid, .roster-groups {
+    grid-template-columns: 32px repeat(4, minmax(0, 1fr));
+  }
+  .roster-groups span:first-child {
+    grid-column: 2/span 2;
+  }
+  .roster-groups span:last-child {
+    grid-column: 4/span 2;
+  }
+  .person[data-unaffected=true] {
+    display: none;
+  }
+  .mobile-free {
+    display: block;
+    font-size: .75rem;
+    color: var(--muted);
+    padding: 4px 10px;
+  }
+  .candidate {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px;
+    gap: 4px;
+  }
+  .candidate-state {
+    font-size: .65rem;
+    padding: 3px 4px;
+  }
+  .picks {
+    gap: 5px;
+  }
+  .brandbar {
+    padding: 10px 0;
+  }
+  .date {
+    font-size: .71rem;
+  }
+  .event-name {
+    font-size: .69rem;
+  }
+  .cal-top {
+    padding: 12px 11px 0;
+  }
+  .shell {
+    padding: 0 10px;
+  }
+  .person-state {
+    font-size: .62rem;
+  }
+  .evidence-cell {
+    font-size: .6rem;
+  }
+  .inspect {
+    border-top-width: 3px;
+  }
+}
+@media (pointer: coarse) {
+  .lock input {
+    inset: -4px;
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot, .event {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body><div class="shell">
+<header class="brandbar"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Scheduling Planner</div><div class="date">Tue, 1 Dec 2026 · UTC</div></header>
+<main>
+<header class="hero"><h1>Why wait until 15:00?</h1><p>Five reviewers need 30 minutes. Pick a start to see what would have to move.</p></header>
+<div class="picks" id="picks" aria-label="Candidate group call starts" role="group" hidden>
+<button type="button" class="candidate" data-time="09:00" aria-pressed="false"><span class="candidate-time">09:00</span><span class="candidate-state">2 conflicts</span></button>
+<button type="button" class="candidate" data-time="09:30" aria-pressed="false"><span class="candidate-time">09:30</span><span class="candidate-state">1 conflict</span></button>
+<button type="button" class="candidate" data-time="15:00" aria-pressed="true"><span class="candidate-time">15:00</span><span class="candidate-state">Clear</span></button></div>
+<div class="workbench" id="workbench" hidden>
+<section class="calendar" aria-label="Availability by person">
+<header class="cal-top"><h2>People’s calendars</h2><span id="calendar-view">Original schedule</span></header>
+<div class="calendar-core"><div class="roster-groups"><span>Required reviewers</span><span>Linked attendees</span></div>
+<div class="calendar-grid" id="calendar-grid"></div><div class="day-end">16:00</div></div>
+<div class="mobile-free">Jules, Mei and Rami are free at all three starts.</div>
+<div class="legend"><span><i class="key target"></i>Group call window</span><span><i class="key old"></i>Original time</span><span>Lock a meeting to keep it fixed.</span></div>
+<details class="evidence" id="evidence"><summary>Check Eli’s noon calendar</summary>
+<label><input type="checkbox" id="coverage" checked>Busy calendar observed from 12:00 to 13:00 UTC</label><p id="evidence-note"></p></details>
+</section>
+<aside class="inspect" aria-live="polite"><div class="status" id="decision-state"></div><h2 id="insight-title"></h2>
+<p id="insight-note"></p><div class="metric" id="metric"></div><ul id="changes"></ul><p class="question" id="question" hidden></p>
+<div class="buttons"><button type="button" id="preview" class="btn primary"></button><button type="button" id="choose" class="btn"></button><button type="button" id="compare-time" class="btn compare"></button></div></aside>
+</div>
+<section class="handoff" id="handoff" aria-labelledby="handoff-title" hidden>
+<div class="handoff-top"><div><h2 id="handoff-title"></h2><p class="status" id="handoff-status"></p></div><button type="button" class="btn close" id="close" aria-label="Close agent handoff">×</button></div>
+<p id="handoff-choice"></p><ul id="handoff-moves"></ul><p id="handoff-evidence"></p>
+<div class="export"><button type="button" class="btn primary" id="download">Download snapshot</button><button type="button" class="btn" id="proposal-download">Save proposal as text</button><code>uv run --locked schedule-plan snapshot.json --brief --ranking earliest</code></div>
+<details><summary>Agent request and input JSON</summary><p id="agent-prompt"></p><pre id="snapshot-json"></pre></details>
+</section>
+<noscript><p>Enable JavaScript to inspect and preview changes. The original solver reference is available below.</p></noscript>
+<details class="reference"><summary>Original Python solver reference</summary><table><thead><tr><th>Move limit</th><th>Earliest UTC start</th><th>Marginal gain</th></tr></thead>
+<tbody id="rows"><tr><th scope="row">0</th><td>15:00</td><td>Baseline</td></tr>
+<tr><th scope="row">1</th><td>09:30</td><td>5 h 30 min</td></tr>
+<tr><th scope="row">2</th><td>09:00</td><td>30 min</td></tr></tbody></table><p id="proof">Reference results use the original fixture with both meetings movable and all seven calendars checked.</p></details>
+</main><footer>Synthetic calendars · All changes are proposals.</footer></div>
+<script id="demo-data" type="application/json">{"snapshot":{"schema_version":"1.1","snapshot_id":"decision-review-v1","metadata":{"description":"Synthetic five-reviewer decision. All times UTC. Busy feeds include adjacent commitments."},"evidence_policy":"explicit","request":{"attendees":["Asha","Ben","Jules","Mei","Rami"],"duration_minutes":30,"starts":["2026-12-01T09:00Z","2026-12-01T09:30Z","2026-12-01T15:00Z"]},"people":{"Asha":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Ben":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Jules":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Mei":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Rami":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Eli":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Dana":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]}},"events":[{"id":"design-review","attendees":["Asha","Eli"],"start":"2026-12-01T09:00Z","duration_minutes":60,"alternatives":["2026-12-01T12:00Z"]},{"id":"team-sync","attendees":["Ben","Dana"],"start":"2026-12-01T09:00Z","duration_minutes":30,"alternatives":["2026-12-01T14:00Z"]}],"max_moves":2},"rows":[{"start":"2026-12-01T15:00Z","end":"2026-12-01T15:30Z","moves":[]},{"start":"2026-12-01T09:30Z","end":"2026-12-01T10:00Z","moves":[{"event_id":"design-review","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T12:00Z","to_end":"2026-12-01T13:00Z","attendees":["Asha","Eli"]}]},{"start":"2026-12-01T09:00Z","end":"2026-12-01T09:30Z","moves":[{"event_id":"design-review","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T12:00Z","to_end":"2026-12-01T13:00Z","attendees":["Asha","Eli"]},{"event_id":"team-sync","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T14:00Z","to_end":"2026-12-01T14:30Z","attendees":["Ben","Dana"]}]}],"solver":"9.15.6755"}</script>
+<script>
+"use strict";
+const reference = JSON.parse(document.getElementById("demo-data").textContent);
+const original = reference.snapshot;
+const byId = id => document.getElementById(id);
+const minutes = 60000;
+const clock = value => new Date(value).toISOString().slice(11, 16);
+const begins = time => original.request.starts.find(t => clock(t) === time);
+const title = event => event.id === "design-review" ? "Design review" : "Team sync";
+const interval = (start, duration) => clock(start) + "–" + clock(Date.parse(start) + duration * minutes);
+const range = item => clock(item.begin) + "–" + clock(item.end);
+const offset = start => "calc(var(--row) * " + ((Date.parse(start) - Date.parse(begins("09:00"))) / (60 * minutes)) + ")";
+function node(tag, name, content) {
+  const result = document.createElement(tag);
+  if (name) result.className = name;
+  if (content !== undefined) result.textContent = content;
+  return result;
+}
+function snapshot() {
+  const data = JSON.parse(JSON.stringify(original));
+  for (const event of data.events) {
+    const control = byId(event.id === "design-review" ? "lock-review" : "lock-sync");
+    if (control.checked) delete event.alternatives;
+  }
+  if (!byId("coverage").checked) data.people.Eli.busy_coverage = [
+    ["2026-12-01T08:00Z", "2026-12-01T12:00Z"], ["2026-12-01T13:00Z", "2026-12-01T18:00Z"]
+  ];
+  return data;
+}
+const covered = (windows, start, end) =>
+  windows.some(([a, b]) => Date.parse(a) <= start && end <= Date.parse(b));
+function placement(data, start, choices) {
+  const meetings = [data.request, ...data.events].map((event, i) => {
+    const begin = Date.parse(i === 0 ? start : choices[i - 1]);
+    return {event, begin, end: begin + event.duration_minutes * minutes,
+      changed: i === 0 || begin !== Date.parse(event.start)};
+  });
+  const missing = [];
+  for (const [i, item] of meetings.entries()) {
+    for (const personId of item.event.attendees) {
+      const person = data.people[personId], rest = (person.rest_minutes || 0) * minutes;
+      if (item.changed) {
+        if (!covered(person.available, item.begin, item.end)) return null;
+        if (!covered(person.busy_coverage, item.begin - rest, item.end + rest))
+          missing.push({personId, event: item.event, begin: item.begin, end: item.end});
+      }
+      for (const other of meetings.slice(0, i)) {
+        if ((item.changed || other.changed) && other.event.attendees.includes(personId)
+            && item.begin < other.end + rest && other.begin < item.end + rest) return null;
+      }
+    }
+  }
+  return {start: meetings[0].begin, meetings, moves: meetings.slice(1).filter(item => item.changed), missing};
+}
+function analyze(data) {
+  const assignments = data.events.reduce((rows, event) => rows.flatMap(row =>
+    [event.start, ...(event.alternatives || [])].map(start => [...row, start])), [[]]);
+  const results = new Map();
+  for (const start of data.request.starts) {
+    const conflicts = data.events.filter(e => e.attendees.some(p => data.request.attendees.includes(p))
+      && Date.parse(e.start) < Date.parse(start) + data.request.duration_minutes * minutes
+      && Date.parse(start) < Date.parse(e.start) + e.duration_minutes * minutes);
+    const options = assignments.map(times => placement(data, start, times)).filter(p => p && p.moves.length <= data.max_moves);
+    options.sort((a, b) => Number(!!a.missing.length) - Number(!!b.missing.length) || a.moves.length - b.moves.length);
+    const plan = options[0];
+    const state = !plan ? "blocked" : plan.missing.length ? "conditional" : conflicts.length ? "conflict" : "clear";
+    results.set(clock(start), {start, conflicts, plan, state});
+  }
+  return results;
+}
+
+const people = new Map();
+const allEvents = new Map();
+const selectedMoves = new Set();
+let time = "15:00";
+let handingOff = false;
+let results;
+const stateLabels = {clear:"Clear", conditional:"Needs confirmation", blocked:"Blocked"};
+function lockControl(event) {
+  const label = node("label", "lock");
+  const input = node("input");
+  input.type = "checkbox";
+  input.id = event.id === "design-review" ? "lock-review" : "lock-sync";
+  input.setAttribute("aria-label", "Keep " + event.attendees.join(" and ") + "’s " + title(event).toLowerCase() + " fixed at 09:00");
+  label.title = input.getAttribute("aria-label");
+  label.append(input);
+  // Both states use a visible shackle and the checkbox remains keyboard accessible.
+  label.insertAdjacentHTML("beforeend", '<svg class="open-lock" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="9" width="12" height="8" rx="2"/><path d="M7 9V6a4 4 0 0 1 8 0"/></svg><svg class="closed-lock" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="9" width="12" height="8" rx="2"/><path d="M5 9V6a4 4 0 0 1 8 0v3"/></svg>');
+  input.addEventListener("change", changeConstraint);
+  return label;
+}
+function buildGrid() {
+  const grid = byId("calendar-grid");
+  const timeColumn = node("div");
+  timeColumn.append(node("div", "clock-head", "UTC"));
+  const axis = node("div", "clock");
+  for (let h = 9; h < 16; h++) {
+    const tick = node("span", "tick", String(h).padStart(2,"0") + ":00");
+    tick.style.top = "calc(var(--row) * " + (h - 9) + ")"; axis.append(tick);
+  }
+  timeColumn.append(axis); grid.append(timeColumn);
+  for (const person of Object.keys(original.people)) {
+    const invited = original.request.attendees.includes(person);
+    const col = node("div", "person"); col.dataset.person = person;
+    col.dataset.outside = String(!invited);
+    col.dataset.unaffected = String(invited && !original.events.some(e => e.attendees.includes(person)));
+    const head = node("div", "person-head"), status = node("span", "person-state");
+    head.append(node("span", "person-name", person),status);
+    const day = node("div", "day"); col.append(head, day); grid.append(col);
+    let slot = null;
+    if (invited) { slot = node("div", "slot"); day.append(slot); }
+    if (person === "Eli") {
+      const window = node("button", "evidence-cell");
+      window.id = "eli-window"; window.type = "button"; window.setAttribute("aria-expanded", "false");
+      window.setAttribute("aria-controls", "evidence"); window.addEventListener("click", () => {
+        byId("evidence").open = true; byId("coverage").focus();
+      });
+      day.append(window);
+    }
+    people.set(person, {col, status, slot});
+    for (const event of original.events.filter(e => e.attendees.includes(person))) {
+      const ghost = node("div", "ghost", "Was 09:00"); ghost.hidden = true;
+      const block = node("div", "event");
+      block.dataset.event = event.id; block.dataset.kind = event.id === "design-review" ? "review" : "sync";
+      block.append(node("span", "event-name", event.id === "design-review" ? "Review" : "Sync"));
+      if (event.attendees[0] === person) block.append(lockControl(event));
+      for (const mark of [block,ghost]) {
+        mark.style.height = "calc(var(--row) * " + event.duration_minutes/60 + ")";
+        mark.style.top = offset(event.start);
+      }
+      day.append(ghost, block);
+      allEvents.set(person + ":" + event.id, {block, ghost, event});
+    }
+  }
+}
+function chooseTime(nextTime) {
+  const target = results.get(nextTime);
+  // Retain a previously previewed move only when this candidate also calls for it.
+  const needed = new Set(target.plan ? target.plan.moves.map(item => item.event.id) : []);
+  for (const id of selectedMoves) if (!needed.has(id)) selectedMoves.delete(id);
+  time = nextTime; handingOff = false; render();
+}
+function changeConstraint() { selectedMoves.clear(); handingOff = false; render(); }
+function moveItem(item) {
+  return node("li", "", item.event.attendees.join(" + ") + " · " + title(item.event) + " · " +
+    interval(item.event.start, item.event.duration_minutes) + " → " + range(item));
+}
+function renderGrid(target, previewed) {
+  const moves = new Map((target.plan?.moves || []).filter(item => selectedMoves.has(item.event.id)).map(item => [item.event.id,item]));
+  byId("calendar-view").textContent = moves.size ? "Proposed changes" : "Original schedule";
+  for (const [person, {col,status,slot}] of people) {
+    const conflict = target.conflicts.some(e => e.attendees.includes(person) && !moves.has(e.id));
+    const involved = target.conflicts.some(e => e.attendees.includes(person));
+    const gap = person === "Eli" && involved && target.state === "conditional";
+    col.dataset.activity = gap ? "gap" : slot && conflict ? "conflict" : involved ? "linked" : "clear";
+    status.textContent = gap ? "Check noon" : slot ? (conflict ? "Conflict" : "Clear") : involved ? "Affected" : "Unchanged";
+    if (slot) {
+      slot.style.top = offset(target.start);
+      slot.dataset.origin = String(involved && !conflict);
+      slot.dataset.state = conflict ? "overlap" : previewed && target.plan ? "preview" : "free";
+      slot.textContent = conflict ? "" : previewed ? "Call" : "Free";
+      slot.setAttribute("aria-label", person + " at " + time + ": " + status.textContent);
+    }
+  }
+  const checked = byId("coverage").checked;
+  const window = byId("eli-window");
+  window.textContent = checked ? "✓ Noon clear" : "? Check noon";
+  window.setAttribute("aria-label", checked ? "Inspect Eli’s noon–13:00 calendar evidence" : "Check Eli’s unknown 12:00–13:00 interval");
+  window.dataset.missing = String(!checked);
+  for (const {block,ghost,event} of allEvents.values()) {
+    const move = moves.get(event.id), start = move ? new Date(move.begin).toISOString() : event.start;
+    block.style.top = offset(start);
+    block.dataset.moved = String(!!move);
+    block.dataset.blocking = String(!move && target.conflicts.some(e => e.id === event.id));
+    block.title = title(event) + " · " + event.attendees.join(" + ") + " · " + interval(start,event.duration_minutes) + " UTC";
+    ghost.hidden = !move;
+  }
+}
+function renderDecision(target, previewed) {
+  const {state,conflicts,plan} = target;
+  const status = byId("decision-state"), note = byId("insight-note"), metric = byId("metric");
+  const preview = byId("preview"), use = byId("choose"), compare = byId("compare-time"), question = byId("question");
+  const clear = time === "15:00";
+  status.dataset.state = state === "conflict" && previewed ? "clear" : state;
+  status.textContent = state === "blocked" ? "Blocked" : state === "conditional" ? "Needs confirmation" :
+    clear || previewed ? "Verified calendar fit" : conflicts.length + (conflicts.length === 1 ? " conflict to resolve" : " conflicts to resolve");
+  byId("insight-title").textContent = time + "–" + clock(Date.parse(target.start) + original.request.duration_minutes * minutes);
+  if (clear) {
+    note.textContent = "All five reviewers are free. What would it take to meet at 09:30?";
+    metric.textContent = "0 meetings moved";
+  } else if (state === "blocked") {
+    const fixed = conflicts.filter(event => byId(event.id === "design-review" ? "lock-review" : "lock-sync").checked);
+    note.textContent = fixed.map(event => event.attendees.join(" and ") + "’s " + title(event).toLowerCase() +
+      " is fixed at " + interval(event.start, event.duration_minutes) + ".").join(" ");
+    metric.textContent = "15:00 remains clear with no moves.";
+  } else {
+    note.textContent = time === "09:30" ? "Asha’s review runs until 10:00. Ben’s sync ends exactly at 09:30." :
+      "Compared with 09:30, Ben and Dana’s sync must also move to 14:00.";
+    metric.textContent = time === "09:30" ? "5h 30m earlier than 15:00" : "30m earlier than 09:30 · 2 more people";
+  }
+  if (!clear && plan) {
+    const affected = new Set(plan.moves.flatMap(item => item.event.attendees));
+    const count = plan.moves.length;
+    metric.append(node("small", "total-impact",
+      count + (count === 1 ? " meeting" : " meetings") + " moved · " + affected.size + " people affected"));
+  }
+  compare.hidden = clear || (!previewed && state !== "blocked");
+  const otherMorning = time === "09:30" ? "09:00" : "09:30";
+  const fallback = state === "blocked" && results.get(otherMorning).state === "blocked";
+  compare.dataset.target = fallback ? "15:00" : otherMorning;
+  compare.textContent = fallback ? "See clear 15:00 option →" : time === "09:30" ? "Compare 09:00 →" : "← Back to 09:30";
+  byId("changes").replaceChildren(...(plan?.moves || []).map(moveItem));
+  question.hidden = state !== "conditional";
+  question.textContent = state === "conditional" ? "Ask Eli: “Is 12:00–13:00 UTC free for the design review?” 15:00 remains verified." : "";
+  preview.hidden = !clear && (previewed || !plan);
+  preview.textContent = clear ? "Explore 09:30 →" : time === "09:30" ? "Preview review at noon →" :
+    selectedMoves.has("design-review") ? "Preview sync at 14:00 →" : "Preview both moves →";
+  use.hidden = !plan || !(previewed || clear);
+  use.className = "btn" + (preview.hidden ? " primary" : "");
+  use.textContent = state === "conditional" ? "Use conditional " + time + " proposal" : "Use " + time + " proposal";
+}
+function exportSnapshot(target) {
+  const data = snapshot();
+  data.request.starts = [target.start];
+  data.max_moves = target.plan.moves.length;
+  return data;
+}
+function renderHandoff(target) {
+  const section = byId("handoff");
+  section.hidden = !handingOff;
+  if (!handingOff) return;
+  const {state,plan} = target, conditional = state === "conditional";
+  byId("handoff-title").textContent = "Agent handoff · " + time + " UTC";
+  byId("handoff-status").textContent = conditional ? "Conditional · calendar evidence needed" : "Verified calendar fit · proposal only";
+  byId("handoff-status").dataset.state = conditional ? "conditional" : "clear";
+  byId("handoff-choice").textContent = "Tuesday, 1 December 2026 · " + range(plan.meetings[0]) + " UTC · " + original.request.attendees.join(", ") + ".";
+  byId("handoff-moves").replaceChildren(...(plan.moves.length ? plan.moves.map(moveItem) : [node("li","","No existing meeting would move.")]));
+  byId("handoff-evidence").textContent = conditional ? byId("question").textContent + " If confirmed, seek agreement for the changes above." :
+    plan.moves.length ? "Ask each affected attendee to agree to the proposed move before changing any calendar." : "Confirm the proposed group call with the five reviewers.";
+  byId("agent-prompt").textContent = "Use $plan-meetings with snapshot.json. Check this specific start, list the proposed moves and remaining evidence, and return a proposal in UTC.";
+  byId("snapshot-json").textContent = JSON.stringify(exportSnapshot(target),null,2);
+}
+function render() {
+  results = analyze(snapshot());
+  const target = results.get(time);
+  const previewed = !!target.plan && target.plan.moves.every(item => selectedMoves.has(item.event.id));
+  for (const button of document.querySelectorAll("[data-time]")) {
+    const result = results.get(button.dataset.time);
+    const active = time === button.dataset.time;
+    const resolved = active && previewed && result.state === "conflict";
+    button.dataset.state = resolved ? "clear" : result.state;
+    button.setAttribute("aria-pressed",String(active));
+    button.querySelector(".candidate-state").textContent = resolved ? "Clear in preview" : stateLabels[result.state] ||
+      result.conflicts.length + (result.conflicts.length === 1 ? " conflict" : " conflicts");
+  }
+  renderGrid(target, previewed); renderDecision(target, previewed); renderHandoff(target);
+  byId("evidence-note").textContent = byId("coverage").checked ? "Eli’s calendar covers the full replacement review." :
+    "Missing evidence: Is Eli free on 1 December from 12:00 to 13:00 UTC? Asha’s working hours alone cannot settle this.";
+}
+buildGrid();
+for (const button of document.querySelectorAll("[data-time]")) button.addEventListener("click", () => chooseTime(button.dataset.time));
+byId("coverage").addEventListener("change", changeConstraint);
+byId("evidence").addEventListener("toggle", () => byId("eli-window").setAttribute("aria-expanded", String(byId("evidence").open)));
+byId("preview").addEventListener("click", () => {
+  if (time === "15:00") { chooseTime("09:30"); return; }
+  const plan = results.get(time).plan;
+  if (plan) for (const item of plan.moves) selectedMoves.add(item.event.id);
+  render(); byId("choose").focus();
+});
+byId("compare-time").addEventListener("click", () => {
+  chooseTime(byId("compare-time").dataset.target);
+  document.querySelector('[data-time="' + time + '"]').focus();
+});
+byId("choose").addEventListener("click", () => {
+  handingOff = true; render(); byId("close").focus();
+});
+byId("close").addEventListener("click", () => { handingOff = false; render(); byId("choose").focus(); });
+function downloadFile(filename, contents, type) {
+  const blob = new Blob([contents], {type});
+  const link = document.createElement("a"), url = URL.createObjectURL(blob);
+  link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+byId("download").addEventListener("click", () => {
+  downloadFile("snapshot.json", JSON.stringify(exportSnapshot(results.get(time)), null, 2) + "\n", "application/json");
+});
+byId("proposal-download").addEventListener("click", () => {
+  const lines = [
+    byId("handoff-choice").textContent, byId("handoff-status").textContent, "",
+    ...Array.from(byId("handoff-moves").children, item => item.textContent),
+    "", byId("handoff-evidence").textContent, ""
+  ];
+  downloadFile("meeting-proposal.txt", lines.join("\n"), "text/plain;charset=utf-8");
+});
+render();
+byId("proof").textContent = "CP-SAT " + reference.solver + " checked the original move limits. This browser demo enumerates the fixture’s starts and replacements as you change constraints.";
+byId("picks").hidden = false; byId("workbench").hidden = false;
+</script></body></html>

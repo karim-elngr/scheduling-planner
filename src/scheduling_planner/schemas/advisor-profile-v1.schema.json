@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scheduling advisor profile v1.0",
+  "description": "Reusable solver defaults, phase guidance and named post-solve heuristics.",
+  "type": "object",
+  "required": ["profile_version", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "profile_version": {"const": "1.0"},
+    "name": {"$ref": "#/$defs/text"},
+    "objective": {
+      "description": "Lexicographic order for the preferred ranking when the snapshot omits its own objective. Each rule:<id> must name a soft constraint in the snapshot.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "anyOf": [
+          {"enum": ["protected_moves", "soft_penalty", "moved_meetings", "people_disrupted", "start"]},
+          {"type": "string", "pattern": "^rule:[\\s\\S]*\\S"}
+        ]
+      }
+    },
+    "rankings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["preferred", "earliest", "least_disruption"]}
+    },
+    "workers": {"type": "integer", "minimum": 1, "maximum": 256},
+    "time_limit_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "min_gain_minutes": {
+      "description": "Start-time gain in whole minutes needed to surface an earlier alternative. Zero admits any positive gain. Verified alternatives are compared with the primary plan. Conditional alternatives are compared with the best verified witness found under the ranking that justifies the question. Reduced disruption can justify a verified alternative, and a non-time objective improvement can justify a conditional one.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "guidance": {
+      "description": "Team-authored instructions for an agent to read at each phase.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gather": {"$ref": "#/$defs/notes"},
+        "solve": {"$ref": "#/$defs/notes"},
+        "explain": {"$ref": "#/$defs/notes"}
+      }
+    },
+    "heuristics": {
+      "description": "Ordered named hooks selected from the caller's trusted registry. Names must be distinct.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"},
+          "params": {"type": "object"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "pattern": "\\S"},
+    "notes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}}
+  }
+}

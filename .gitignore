@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+# Private snapshots, exports, and locally generated plans
+/local/
+/snapshot.json
+/meeting-proposal.txt
+/build/
+/dist/
+*.egg-info/
+.ruff_cache/
+
+/.planner-runtime/

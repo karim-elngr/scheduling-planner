@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.1",
+  "snapshot_id": "synthetic-release-42-v2",
+  "metadata": {"description": "Synthetic release decision, 1 December 2026. Times use Dubai's UTC+04:00 offset."},
+  "request": {
+    "attendees": ["Asha", "Ben", "Jules", "Mei", "Rami"],
+    "duration_minutes": 30,
+    "starts": ["2026-12-01T10:00+04:00", "2026-12-01T11:00+04:00"]
+  },
+  "people": {
+    "Asha":  {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]},
+    "Ben":   {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]},
+    "Jules": {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]},
+    "Mei":   {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]},
+    "Rami":  {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]},
+    "Lin":   {"available": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]], "rest_minutes": 15, "busy_coverage": [["2026-12-01T08:00+04:00", "2026-12-01T13:00+04:00"]]}
+  },
+  "events": [
+    {"id": "smoke-check", "attendees": ["Ben"], "duration_minutes": 30, "start": "2026-12-01T09:00+04:00"},
+    {"id": "vendor-call", "attendees": ["Lin"], "duration_minutes": 30, "start": "2026-12-01T10:00+04:00"}
+  ],
+  "facts": {
+    "release_cutoff": "2026-12-01T11:45+04:00",
+    "release_responders": ["Asha", "Lin"]
+  },
+  "decisions": {"standby_responder": ["Asha", "Lin"]},
+  "constraints": [
+    {
+      "id": "release-deadline", "kind": "finish_by", "mode": "hard",
+      "params": {"event": "$request", "fact": "release_cutoff"},
+      "source": "Synthetic release ticket REL-42, release coordinator's decision deadline"
+    },
+    {
+      "id": "read-smoke-results", "kind": "precedence", "mode": "hard",
+      "params": {"before": "smoke-check", "after": "$request", "gap_minutes": 15},
+      "source": "Synthetic release ticket REL-42, allow 15 minutes for smoke results"
+    },
+    {
+      "id": "incident-cover", "kind": "standby_cover", "mode": "hard",
+      "params": {"roster_fact": "release_responders", "responder_decision": "standby_responder"},
+      "source": "Synthetic release-operations handover, 1 December duty roster and instruction to keep one responder available throughout the review"
+    }
+  ],
+  "objective": ["soft_penalty", "moved_meetings", "start"]
+}

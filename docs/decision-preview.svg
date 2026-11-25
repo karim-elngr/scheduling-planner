@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 340" role="img" aria-labelledby="title desc">
+<title id="title">What does an earlier group call cost?</title>
+<desc id="desc">Three schedules for Tuesday 1 December 2026 in UTC. The group call, design review and team sync are shown in separate lanes within each schedule.</desc>
+<style>text{font-family:system-ui,sans-serif;fill:#163b32}.small{font-size:14px;fill:#425e53}.head{font-size:21px;font-weight:650}.mono{font:14px ui-monospace,monospace}</style>
+<rect width="1080" height="340" rx="14" fill="#f5f6ef"/>
+<text x="26" y="37" class="head">Tuesday, 1 December</text><text x="1018" y="36" class="small" text-anchor="end">UTC</text>
+<path d="M358 73V287" stroke="#ced9ce"/>
+<text x="358" y="65" class="mono" text-anchor="middle">09:00</text>
+<path d="M451 73V287" stroke="#ced9ce"/>
+<text x="451" y="65" class="mono" text-anchor="middle">10:00</text>
+<path d="M544 73V287" stroke="#ced9ce"/>
+<text x="544" y="65" class="mono" text-anchor="middle">11:00</text>
+<path d="M637 73V287" stroke="#ced9ce"/>
+<text x="637" y="65" class="mono" text-anchor="middle">12:00</text>
+<path d="M730 73V287" stroke="#ced9ce"/>
+<text x="730" y="65" class="mono" text-anchor="middle">13:00</text>
+<path d="M823 73V287" stroke="#ced9ce"/>
+<text x="823" y="65" class="mono" text-anchor="middle">14:00</text>
+<path d="M916 73V287" stroke="#ced9ce"/>
+<text x="916" y="65" class="mono" text-anchor="middle">15:00</text>
+<path d="M1009 73V287" stroke="#ced9ce"/>
+<text x="1009" y="65" class="mono" text-anchor="middle">16:00</text>
+<text x="26" y="102" class="head">15:00 group call</text><text x="26" y="125" class="small">Keep both meetings</text>
+<rect x="916" y="78" width="46.5" height="12" rx="3" fill="#164c3e"/>
+<rect x="358" y="95" width="93" height="12" rx="3" fill="#77609c"/>
+<rect x="358" y="112" width="46.5" height="12" rx="3" fill="#b97736"/>
+<path d="M26 138H1036" stroke="#d9e1d7"/>
+<text x="26" y="174" class="head">09:30 group call</text><text x="26" y="197" class="small">Move the design review</text>
+<rect x="404.5" y="150" width="46.5" height="12" rx="3" fill="#164c3e"/>
+<rect x="637" y="167" width="93" height="12" rx="3" fill="#77609c"/>
+<rect x="358" y="184" width="46.5" height="12" rx="3" fill="#b97736"/>
+<path d="M26 210H1036" stroke="#d9e1d7"/>
+<text x="26" y="246" class="head">09:00 group call</text><text x="26" y="269" class="small">Move the review and team sync</text>
+<rect x="358" y="222" width="46.5" height="12" rx="3" fill="#164c3e"/>
+<rect x="637" y="239" width="93" height="12" rx="3" fill="#77609c"/>
+<rect x="823" y="256" width="46.5" height="12" rx="3" fill="#b97736"/>
+<path d="M26 282H1036" stroke="#d9e1d7"/>
+<rect x="26" y="308" width="14" height="10" rx="2" fill="#164c3e"/><text x="47" y="318" class="small">Group call · 5 reviewers</text>
+<rect x="236" y="308" width="14" height="10" rx="2" fill="#77609c"/><text x="257" y="318" class="small">Design review · Asha + Eli</text>
+<rect x="518" y="308" width="14" height="10" rx="2" fill="#b97736"/><text x="539" y="318" class="small">Team sync · Ben + Dana</text>
+</svg>

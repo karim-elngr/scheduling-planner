@@ -1,0 +1,8 @@
+include .gitignore uv.lock
+include calendar-decision-walkthrough.html run.py planner.py sample.json CONTRIBUTING.md CHANGELOG.md SECURITY.md
+recursive-include examples *.py *.json
+recursive-include benchmarks *.py
+recursive-include tests *.py
+recursive-include docs *.md *.html *.svg
+recursive-include tools *.py
+recursive-include .agents/skills/plan-meetings *.md *.json

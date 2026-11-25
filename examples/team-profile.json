@@ -1,0 +1,15 @@
+{
+  "profile_version": "1.0",
+  "name": "Deadline-sensitive coordination",
+  "objective": ["protected_moves", "start", "moved_meetings", "people_disrupted", "soft_penalty"],
+  "rankings": ["preferred", "earliest", "least_disruption"],
+  "workers": 1,
+  "time_limit_seconds": 30,
+  "min_gain_minutes": 30,
+  "guidance": {
+    "gather": ["Confirm which deadlines are fixed and who can approve a change to an existing meeting."],
+    "solve": ["Compare the preferred plan with the least-disruptive plan before expanding the move budget."],
+    "explain": ["State how much earlier the group can meet and name the attendees affected by each move."]
+  },
+  "heuristics": [{"name": "coordination_note", "params": {}}]
+}
