@@ -1,9 +1,11 @@
 """Evidence behind the policy and maker-time explanation in a saved decision."""
 from datetime import date
 import json
+from itertools import count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from scheduling_planner.ingestion import build_snapshot
 from scheduling_planner.portfolio import solve_portfolio
@@ -52,10 +54,13 @@ class PortfolioTradeoffTests(unittest.TestCase):
     def test_maker_target_export_without_a_witness_explains_solver_status(self):
         source = self.snapshot()
         source["portfolio"]["maker_target"] = {"person": "Lead", "duration_minutes": 600}
-        for limit, status, message in [(5, "INFEASIBLE", "No schedule meets all requirements"),
-                                       (1e-12, "UNKNOWN", "without establishing whether")]:
+        infeasible = solve_portfolio(source, compare_moves=True)
+        # Expire the shared budget before search, independent of OS clock precision.
+        with patch("scheduling_planner.portfolio.monotonic", side_effect=count()):
+            unknown = solve_portfolio(source, compare_moves=True, time_limit_seconds=1)
+        for report, status, message in [(infeasible, "INFEASIBLE", "No schedule meets all requirements"),
+                                        (unknown, "UNKNOWN", "without establishing whether")]:
             with self.subTest(status=status), TemporaryDirectory() as out:
-                report = solve_portfolio(source, compare_moves=True, time_limit_seconds=limit)
                 self.assertEqual(report["status"], status)
                 export_pack(report, source, out)
                 text = (Path(out) / "proposal.txt").read_text(encoding="utf-8")

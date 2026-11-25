@@ -1,5 +1,6 @@
 import itertools
 import unittest
+from unittest.mock import patch
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
@@ -187,7 +188,8 @@ class PortfolioTests(unittest.TestCase):
         # An actual witness proves existence even when ranking was deliberately stopped early.
         quick = solve_portfolio(data, proof_lite=True)
         self.assertEqual((quick["status"], quick["maker_target"]), ("FEASIBLE", report["maker_target"]))
-        expired = solve_portfolio(data, time_limit_seconds=1e-12)
+        with patch("scheduling_planner.portfolio.monotonic", side_effect=itertools.count()):
+            expired = solve_portfolio(data, time_limit_seconds=1)
         self.assertEqual(expired["status"], "UNKNOWN")
         self.assertEqual((expired["maker_target"]["status"], expired["maker_target"]["witness"]), ("unknown", None))
 
