@@ -117,6 +117,12 @@ class BatchEvidence(unittest.TestCase):
         del data["request"]
         self.assertEqual(build_snapshot(data)["requests"], [])
 
+    def test_explicit_weekend_at_last_supported_date(self):
+        window = ["9999-12-31T02:00Z", "9999-12-31T15:00Z"]
+        roster = {"A": {"timezone": "UTC", "weekend": [], "available": [window]}}
+        result = build_snapshot({"window": window, "roster": roster})
+        self.assertEqual(result["people"]["A"]["available"], [window])
+
     def test_person_dates_and_coverage_are_clipped_to_query(self):
         data = batch()
         data["roster"]["B"]["available"] = [["2026-11-25T05:00Z", "2026-11-25T08:00Z"]]
@@ -166,6 +172,15 @@ class RecurringEvidence(unittest.TestCase):
         self.assertEqual(first["duration_minutes"], 1440)
         self.assertEqual(second["duration_minutes"], 1500)
         self.assertEqual(second["metadata"]["until"], "2026-11-01")
+
+    def test_all_day_recurrence_rejects_unrepresentable_end(self):
+        event = {"id": "away", "start": "9999-12-30", "end": "9999-12-31",
+                 "recurrence": {"frequency": "daily"}}
+        data = {"roster": {"A": {"timezone": "UTC"}},
+                "window": ["9999-12-31T00:00Z", "9999-12-31T23:59Z"],
+                "calendars": {"A": {"series": [event]}}}
+        with self.assertRaisesRegex(ValueError, "supported date range"):
+            build_snapshot(data)
 
     def test_invalid_weekday_or_unsupported_rule_fails_clearly(self):
         data = batch()

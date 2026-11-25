@@ -17,7 +17,7 @@ from ortools.sat.python import cp_model as cp
 
 from .config import time_limit, worker_count
 from .domain import (
-    EPOCH, MAX_MINUTE, MIN_MINUTE, arr, covers, fields, intersect_windows, iso, local_days, nonempty_text, obj,
+    EPOCH, MAX_MINUTE, MIN_MINUTE, arr, covers, fields, intersect_windows, iso, local_datetime, local_days, nonempty_text, obj,
     read_calendar, read_meeting, require, snapshot_digest, whole_number,
 )
 from .move_comparison import _caps
@@ -44,10 +44,6 @@ def _minute(value):
             "expected a local time in HH:MM format")
     h, m = map(int, value.split(":"))
     return 60 * h + m
-
-
-def _local(minute, zone):
-    return (EPOCH + timedelta(minutes=minute)).astimezone(zone)
 
 
 def _clock(dt):
@@ -270,7 +266,7 @@ def _preference_cost(model, flags, choices, zone, pref):
     daily = defaultdict(list)
     terms = []
     for c in choices:
-        start = _local(c.start, zone)
+        start = local_datetime(c.start, zone)
         daily[start.date()].append(flags[c])
         if _clock(start) < early:
             terms.append(flags[c])
@@ -278,7 +274,11 @@ def _preference_cost(model, flags, choices, zone, pref):
             # Check every touched day, including the first for an overnight event.
             for day, _, _ in local_days([(c.start, c.end)], zone):
                 midnight = datetime.combine(day, datetime.min.time(), zone)
-                low, high = (int(((midnight + timedelta(minutes=m)) - EPOCH).total_seconds() // 60) for m in lunch)
+                low = int(((midnight + timedelta(minutes=lunch[0])) - EPOCH).total_seconds() // 60)
+                if day == datetime.max.date() and lunch[1] == 1440:
+                    high = MAX_MINUTE + 1
+                else:
+                    high = int(((midnight + timedelta(minutes=lunch[1])) - EPOCH).total_seconds() // 60)
                 if c.start < high and low < c.end:
                     terms.append(flags[c])
                     break
@@ -305,8 +305,8 @@ def _cluster(model, groups, flags, ids, hours, zone):
         starts.append(start)
         ends.append(start + group[0].duration)
         for c in group:
-            dt = _local(c.start, zone)
-            last = _local(c.end - 1, zone)
+            dt = local_datetime(c.start, zone)
+            last = local_datetime(c.end - 1, zone)
             for day, _, _ in local_days([(c.start, c.end)], zone):
                 require(len(by_day) < 20000 or day in by_day, "cluster horizon exceeds 20000 days")
                 by_day[day].append(flags[c])

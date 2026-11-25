@@ -146,6 +146,6 @@ class CalendarOsTests(unittest.TestCase):
         gallery = Path(__file__).resolve().parents[1] / "examples" / "profiles"
         for name in ("mixed-timezones", "launch-week", "steady-state"):
             with self.subTest(name=name):
-                profile = validate_profile(json.loads((gallery / f"{name}.json").read_text()))
+                profile = validate_profile(json.loads((gallery / f"{name}.json").read_text(encoding="utf-8")))
                 self.assertIn("objective", profile)
                 self.assertIn("gather", profile["guidance"])

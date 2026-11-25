@@ -66,18 +66,19 @@ class VisualizeTests(unittest.TestCase):
         report = advise(source, profile=profile)
         with TemporaryDirectory() as directory:
             pack = Path(directory) / "week"
+            pack.mkdir()
             export_pack(report, source, pack)
             self.assertEqual({p.name for p in pack.iterdir()}, {"plan.html", "snapshot.json", "proposal.txt"})
-            self.assertEqual(snapshot_digest(json.loads((pack / "snapshot.json").read_text())),
+            self.assertEqual(snapshot_digest(json.loads((pack / "snapshot.json").read_text(encoding="utf-8"))),
                              report["result"]["scope"]["snapshot_sha256"])
-            proposal = (pack / "proposal.txt").read_text()
+            proposal = (pack / "proposal.txt").read_text(encoding="utf-8")
             for detail in ("09:00–09:30 UTC", "design-review", "team-sync", "Eli", "Dana", "Please confirm"):
                 self.assertIn(detail, proposal)
-            self.assertEqual((pack / "plan.html").read_text(), render_html(report, source))
-            (pack / "proposal.txt").write_text("Edited proposal")
+            self.assertEqual((pack / "plan.html").read_text(encoding="utf-8"), render_html(report, source))
+            (pack / "proposal.txt").write_text("Edited proposal", encoding="utf-8")
             with self.assertRaises(ValueError):
                 export_pack(report, source, pack)
-            self.assertEqual((pack / "proposal.txt").read_text(), "Edited proposal")
+            self.assertEqual((pack / "proposal.txt").read_text(encoding="utf-8"), "Edited proposal")
 
     def test_portfolio_current_and_proposed_week_and_maker_only_stages(self):
         source = demo_snapshot()

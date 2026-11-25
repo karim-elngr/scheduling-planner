@@ -10,6 +10,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 
 def only(directory, pattern):
@@ -81,6 +82,13 @@ def check(directory):
         demo = "scheduling_planner/data/demo.json"
         input_schema = json.loads(wheel.read("scheduling_planner/schemas/snapshot-v1.schema.json"))
         Draft202012Validator(input_schema).validate(json.loads(wheel.read(demo)))
+        portfolio_schema = json.loads(wheel.read("scheduling_planner/schemas/portfolio-v1.schema.json"))
+        Draft202012Validator.check_schema(portfolio_schema)
+        registry = Registry().with_resource("snapshot-v1.schema.json", Resource.from_contents(input_schema))
+        portfolio_validator = Draft202012Validator(portfolio_schema, registry=registry)
+        for case in ("cluster-one-on-ones", "recover-maker-block"):
+            fixture = f".agents/skills/plan-meetings/evals/{case}.json"
+            portfolio_validator.validate(json.loads(from_source(fixture)))
         dist_info = next(n.rsplit("/", 1)[0] for n in wheel.namelist() if n.endswith(".dist-info/METADATA"))
         meta = message_from_bytes(wheel.read(f"{dist_info}/METADATA"))
         sdist_meta = message_from_bytes(from_source("PKG-INFO"))

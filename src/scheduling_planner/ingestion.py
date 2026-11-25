@@ -8,7 +8,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .domain import (
-    EPOCH, arr, intersect_windows, iso, merge, nonempty_text, obj, parse_snapshot,
+    arr, intersect_windows, iso, local_datetime, local_days, merge, nonempty_text, obj, parse_snapshot,
     read_calendar, require, timestamp_minute,
     whole_number, window_pairs,
 )
@@ -16,7 +16,7 @@ from .domain import (
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 ONE_DAY = timedelta(days=1)
 MOVE_FIELDS = ("alternatives", "move_windows", "step_minutes")
-EVENT_FACTS = ("title", "organizer", "priority", "status", "squads", "review_date",
+EVENT_FACTS = ("title", "organizer", "priority", "role", "status", "squads", "review_date",
                "renewal_date", "until", "series_id", "recurrence_count")
 
 
@@ -50,16 +50,12 @@ def _clock(value):
         raise ValueError("working_hours requires HH:MM") from exc
 
 
-def _local(minute, zone):
-    return (EPOCH + timedelta(minutes=minute)).astimezone(zone)
-
-
 def _wall(day, clock, zone, fold=0):
     instant = datetime.combine(day, clock, tzinfo=zone).replace(fold=fold)
     # ZoneInfo permits nonexistent wall times. Reject them instead of shifting
     # a meeting during a DST gap without the host's knowledge.
     stamp = timestamp_minute(instant.isoformat(timespec="minutes"))
-    require(_local(stamp, zone).replace(tzinfo=None) == instant.replace(tzinfo=None),
+    require(local_datetime(stamp, zone).replace(tzinfo=None) == instant.replace(tzinfo=None),
             f"{instant} falls in a local clock gap; supply the dated exception")
     return stamp
 
@@ -84,8 +80,8 @@ def _person(pid, profile, calendar, window):
             metadata[key] = profile[key]
     available = _clip(window_pairs(profile.get("available", []), f"{pid}.available"), window)
     possible = _clip(window_pairs(profile.get("possible", []), f"{pid}.possible"), window)
-    first = _local(window[0], zone).date()
-    last = _local(window[1] - 1, zone).date()
+    first = local_datetime(window[0], zone).date()
+    last = local_datetime(window[1] - 1, zone).date()
     explain = f"{pid} ({zone.key})"
     if "working_hours" in profile:
         hours = arr(profile["working_hours"], f"{pid}.working_hours")
@@ -104,11 +100,8 @@ def _person(pid, profile, calendar, window):
         explain += f" works {hours[0]}–{hours[1]} local time"
     elif "weekend" in profile:
         # An explicit weekend also restricts ad hoc dated availability.
-        eligible = []
-        for offset in range((last - first).days + 1):
-            day = first + offset * ONE_DAY
-            if DAYS[day.weekday()] not in weekend:
-                eligible.append((_wall(day, time(), zone), _wall(day + ONE_DAY, time(), zone)))
+        eligible = [(start, end) for day, start, end in local_days([window], zone)
+                    if DAYS[day.weekday()] not in weekend]
         available = intersect_windows(available, eligible)
         possible = intersect_windows(possible, eligible)
     explain += f". Weekend: {', '.join(weekend) or 'none'}."
@@ -142,7 +135,7 @@ def _event_bounds(event, zone):
 def _recurrences(series, zone, window):
     """Enumerate original local dates, including exceptions moved into the window."""
     start, end = _event_bounds(series, zone)
-    anchor = _local(start, zone)
+    anchor = local_datetime(start, zone)
     rule = obj(series.get("recurrence"), "recurrence")
     require(not set(rule) - {"frequency", "weekdays", "count", "until", "interval"},
             "unsupported recurrence fields")
@@ -158,8 +151,8 @@ def _recurrences(series, zone, window):
                   obj(series.get("exceptions", {}), "exceptions").items()}
     # Look back far enough for occurrences which overlap the left boundary.
     # Explicitly visit moved exceptions even when their original date is outside.
-    left = max(anchor.date(), _local(max(start, window[0] - (end - start)), zone).date())
-    right = _local(window[1] - 1, zone).date()
+    left = max(anchor.date(), local_datetime(max(start, window[0] - (end - start)), zone).date())
+    right = local_datetime(window[1] - 1, zone).date()
     dates = {left + delta * ONE_DAY for delta in range((right - left).days + 1)}
     for day in sorted(dates | exceptions.keys()):
         delta = (day - anchor.date()).days
@@ -185,7 +178,9 @@ def _recurrences(series, zone, window):
             # All-day series keep their calendar-day length over DST.
             if len(series["start"]) == 10 and "end" in series and len(series["end"]) == 10 and "duration_minutes" not in override:
                 length = _date(series["end"], "end") - anchor.date()
-                target_day = _local(_endpoint(event["start"], "start", zone), zone).date()
+                target_day = local_datetime(_endpoint(event["start"], "start", zone), zone).date()
+                require(length <= date.max - target_day,
+                        "all-day occurrence end exceeds the supported date range")
                 event["end"] = iso(_wall(target_day + length, time(), zone))
             else:
                 event["duration_minutes"] = override.get("duration_minutes", end - start)

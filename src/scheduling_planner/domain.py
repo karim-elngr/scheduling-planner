@@ -106,12 +106,22 @@ def intersect_windows(left, right):
             b += 1
 
 
+def local_datetime(minute, zone):
+    """Require a UTC grid minute representable in the selected local timezone."""
+    try:
+        return (EPOCH + timedelta(minutes=minute)).astimezone(zone)
+    except OverflowError as error:
+        raise ValueError(f"timestamp exceeds the supported date range in {zone}") from error
+
+
 def local_days(windows, zone):
     """Split UTC minute windows at local midnights, preserving DST day lengths."""
     minute = timedelta(minutes=1)
     for start, end in windows:
+        if start < end:
+            local_datetime(end - 1, zone)
         while start < end:
-            day = (EPOCH + start * minute).astimezone(zone).date()
+            day = local_datetime(start, zone).date()
             boundary = end
             if day != datetime.max.date():
                 midnight = datetime.combine(day + timedelta(days=1), datetime.min.time(), zone)

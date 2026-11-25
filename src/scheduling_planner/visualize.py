@@ -190,6 +190,9 @@ def export_pack(report, snapshot, directory):
                     "proposal.txt": _proposal(view)}
         for name, content in contents.items():
             (pack / name).write_text(content, encoding="utf-8")
-        if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
-            raise ValueError("export pack requires a new or empty directory")
-        pack.replace(directory)
+        if directory.exists():
+            if not directory.is_dir() or directory.is_symlink() or any(directory.iterdir()):
+                raise ValueError("export pack requires a new or empty directory")
+            # Windows cannot rename a directory over an existing empty one.
+            directory.rmdir()
+        pack.rename(directory)

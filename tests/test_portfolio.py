@@ -163,6 +163,14 @@ class PortfolioTests(unittest.TestCase):
         data["people"]["a"]["busy_coverage"] = [[at(0), at(60)], [at(90), at(120)]]
         self.assertEqual(solve_portfolio(data)["metrics"]["focus_minutes"], 60)
 
+    def test_timezone_year_limits_are_validation_errors(self):
+        for lo, hi, zone in [("9999-12-31T21:00Z", "9999-12-31T22:00Z", "Asia/Dubai"),
+                            ("0001-01-01T00:00Z", "0001-01-01T01:00Z", "America/New_York")]:
+            data = {"requests": [], "portfolio": {"timezone": zone},
+                    "people": {"a": {"available": [[lo, hi]], "busy_coverage": [[lo, hi]]}}}
+            with self.subTest(zone=zone), self.assertRaisesRegex(ValueError, "supported date range"):
+                solve_portfolio(data)
+
     def test_new_constraints_and_ids_are_validated(self):
         base = {"people": {"a": person((0, 180))}, "requests": [request("x", [0])]}
         for change in [dict(constraints=[{}]), dict(events=[event("x", 0)]),
