@@ -1,0 +1,23 @@
+name: Import demo figures
+on: push
+jobs:
+  import:
+    if: github.ref == 'refs/heads/main' && github.event.head_commit.message == 'Import the verified Chrome screenshots as Git objects'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Verify the capture archive and store the three figures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/"$GITHUB_REPOSITORY"/actions/artifacts/14999503842/zip > demo.zip
+          echo 'e1986824114ad27ba85f1bc8a0702239d13faa74a0d4be2bc00d1ab82f168353  demo.zip' | sha256sum --check
+          for name in one-move two-moves conditional-handoff; do
+            unzip -p demo.zip "$name.png" > "$name.png"
+            test -s "$name.png"
+            sha=$(base64 -w0 "$name.png" | jq -Rs '{content:., encoding:"base64"}' | gh api -X POST repos/"$GITHUB_REPOSITORY"/git/blobs --input - --jq '.sha')
+            test "$sha" = "$(git hash-object "$name.png")"
+            echo "Captured $name.png $sha"
+          done
