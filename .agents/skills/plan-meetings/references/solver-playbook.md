@@ -65,22 +65,34 @@ The second command runs a bundled synthetic example. A selected post-solve hook 
 
 ## Plan and share a week
 
-A host can prepare one roster export for the dated horizon. Supply a `window` of offset timestamps, a `roster` mapping each person ID to their IANA timezone, local working hours and weekends, and `calendars` mapping the same IDs to observed events, recurrence series and busy coverage. Include the `requests` to place and `portfolio` policies. Preserve provider occurrence IDs, shared UIDs, organizer identities and optional attendee status when available. Read permission for opaque busy blocks provides evidence of occupancy.
+For a runnable rehearsal, create the checkout's ignored `local/` directory and copy [the synthetic ritual-day batch](../../../../examples/ritual-day-batch.json) there as `roster.json`. The lead's two 1:1s already share Tuesday. Their alternatives fall on Monday, the team's preferred ritual day. Steps 1–3 describe how an authorized host would assemble the same input from a calendar read. Start at step 4 for the fixture. Use `requests: []` when all decisions concern existing rituals.
+
+1. **Capture the week.** Set the dated `window`, each person's IANA timezone, working intervals and rest, and the organizer's `portfolio.timezone`. Read the organizer's overlapping commitments and the allowed replacement intervals. Follow pagination and account for recurring exceptions. Fill `busy_coverage` only for the intervals the host actually checked.
+2. **Resolve linked attendees.** Inspect the attendees on each occurrence the organizer allows to move. A 1:1 with a coworker outside the original request still occupies both people's calendars. Resolve the coworker to a roster ID, obtain their eligible hours, and read their busy calendar for the proposed replacements plus rest on both sides. Include commitments found on that read. When the coworker falls outside the authorized read scope, ask for permission or for the dated evidence from that coworker. Keep the occurrence fixed if its full roster is unknown (`attendees_complete: false`). A known roster still needs checked coverage at a replacement before the solver can verify a move.
+3. **Bind the ritual.** In the organizer's normalized calendar record, keep the provider occurrence `id`, shared `uid`, and `etag` from that read. Add the host's label as `host_id`, for example `"amal-check-in"`. A batch can use that same label in `portfolio.movable_rituals` and `portfolio.cluster.events`. For a recurring series use a dated occurrence reference, for example `amal-check-in@2026-12-01`, using the original local date even if that instance was rescheduled. List **replacement starts only** in `alternatives`. Keeping the incumbent is an implicit option. Include the authorized `max_moves` on the batch.
+4. **Compile and diagnose.** For a live read, place the host responses under `calendars` keyed by roster ID and save the batch as `local/roster.json`. Run the commands below. Check `metadata.ingestion_warnings` and `metadata.event_id_map` in `week.json`. The map lists compiled occurrence IDs for each reference. If a name has several matches, use the intended dated occurrence or a unique compiled ID. For a Python reader, `collect_snapshot(batch, read_calendar)` performs collection and compilation together. Save its return value as `local/week.json` and start with `calendar-os`. [Batch fields and callback contract](../../../../docs/batch-snapshot.md)
 
 ```sh
 uv run --locked schedule-plan batch-snapshot local/roster.json > local/week.json
 uv run --locked schedule-plan calendar-os local/week.json > local/diagnosis.json
 ```
 
-Review the diagnoses and proposed day roles with the organizer. Apply accepted entries from `template_proposal.week_template` to `portfolio.week_template` and label the relevant requests. A representative request can list a set of authorized substitutes in `representatives`. Confirm that one delegate can represent the group before changing the required roster. Limit `portfolio.movable_rituals` to the named occurrences and supply the permitted replacements as event alternatives.
+Review the diagnosis with the organizer. To try accepted day roles, set `portfolio.week_template` on the batch, tag the relevant requests or calendar events with `role`, and compile it again. A representative request can list authorized substitutes in `representatives`. In the fixture, compare the cost of moving the Tuesday check-ins to Monday:
 
 ```sh
-uv run --locked schedule-plan portfolio local/week.json --compare-moves > local/plan.json
-uv run --locked schedule-plan visualize local/plan.json --snapshot local/week.json --output local/week.html
+uv run --locked schedule-plan portfolio local/week.json --brief --compare-moves > local/plan.json
 uv run --locked schedule-plan export-pack local/plan.json --snapshot local/week.json --output local/share
 ```
 
-Use `--proof-lite` on the portfolio command for a quick witness. Inspect the full optimization result before promising that a gain is proved. Each stage's move budget is a ceiling. Read its actual placements and moves. For a maker-time target, inspect the continuous interval inside the focus person's covered working time after applying that stage's moves. A manager can recover two hours across several afternoons without any single two-hour block.
+Read `objective_summary` and each stage's `tradeoff`. In the fixture, moving both 1:1s satisfies the Monday preference. The lead's longest daily focus blocks total 150 minutes, down from 180 with both meetings kept on Tuesday. To test a required two-hour block on Tuesday, add this `maker_target` field inside the batch's `portfolio` object:
+
+```json
+{"maker_target": {"person": "Lead", "duration_minutes": 120, "window": ["2026-12-01T00:00+04:00", "2026-12-02T00:00+04:00"]}}
+```
+
+Compile and solve again with new output filenames. Two other Tuesday commitments still break up the lead's time. The target result tells you whether moving the 1:1s actually opens a two-hour block. Use the matching compiled snapshot and a fresh directory for each export.
+
+Use `--proof-lite` on the portfolio command for a quick witness. Inspect the full optimization result before promising that a gain is proved. Each stage's move budget is a ceiling. Read its actual placements and moves. For a maker target, quote the stage's `maker_target.witness` in the organizer's timezone. A feasible witness establishes existence at that cap. An infeasibility proof covers the supplied domains, target and hard constraints. An unknown stage leaves that budget unresolved. When comparing a soft ritual day with maker time, explain which preference improved, the change in summed focus minutes, and how many existing meetings moved. Recommend keeping the incumbent when the baseline already meets the organizer's goal.
 
 If the organizer prefers a lower-budget stage, run the chosen cap and verify its witness before preparing the apply manifest. Tied schedules can differ between solves.
 

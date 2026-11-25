@@ -14,7 +14,7 @@ The report groups days in `portfolio.timezone` (UTC by default). A person's own 
 | `days` | Aggregated person-minutes. `covered_work_minutes` measures the intersection of eligible working time and observed busy coverage. `busy_minutes` counts occupied time in that intersection once per person. |
 | `free_blocks`, `free_minutes` | Count and duration of contiguous unoccupied periods in covered working time. Missing coverage breaks a block. |
 | `sum_longest_free_minutes` | Sum of each person's longest observed free block for the day. The per-person daily rows show the individual values. |
-| `invite_hygiene` | One review row for each known invitation. Scores range from zero to three, with one point each for optional attendance, tentative status and cross-squad participation. |
+| `invite_hygiene` | Invitations with at least one review signal, sorted by score. Optional attendance, tentative status and cross-squad participation each contribute one point. Ordinary invitations still contribute to each attendee’s `invited_minutes`. |
 | `recurring_sunsets` | Series represented in the snapshot with no recorded review date, renewal date, end date or finite occurrence count. Each entry lists its observed occurrences and organizer when known. |
 
 Check `evidence_warnings` for failed calendar reads or conflicting shared occurrences before drawing conclusions from the totals.

@@ -130,3 +130,26 @@ class VisualizeTests(unittest.TestCase):
             self.assertIn("Budget {{REVIEW_JS}} </script>", option["proposal"])
             self.assertEqual(option["proposal"].count("Move "), len(option["moves"]))
         self.assertNotIn("Budget {{REVIEW_JS}} </script>", html)
+
+    def test_portfolio_proposal_uses_organizer_time_for_request_and_moved_occurrence(self):
+        original = "2026-11-01T05:45Z"
+        replacement = "2026-11-02T04:45Z"
+        coverage = [[original, "2026-11-01T06:15Z"], [replacement, "2026-11-02T05:15Z"]]
+        snapshot = {"schema_version": "1.1", "max_moves": 1,
+                    "people": {"Ada": {"available": coverage, "busy_coverage": coverage}},
+                    "events": [{"id": "sync", "attendees": ["Ada"], "start": original, "duration_minutes": 30,
+                                "alternatives": [replacement]}],
+                    "requests": [{"id": "review", "attendees": ["Ada"], "duration_minutes": 30, "starts": [original]}],
+                    "portfolio": {"timezone": "America/New_York", "movable_rituals": ["sync"]}}
+        report = solve_portfolio(snapshot)
+        self.assertEqual(report["timezone"], "America/New_York")
+        with TemporaryDirectory() as directory:
+            export_pack(report, snapshot, directory)
+            proposal = (Path(directory) / "proposal.txt").read_text(encoding="utf-8")
+        self.assertEqual(page_data(render_html(report))["options"][0]["proposal"], proposal)
+        self.assertIn("Sun 01 Nov 2026, 01:45 EDT–01:15 EST America/New_York (05:45–06:15 UTC)", proposal)
+        self.assertIn("Sun 01 Nov 2026, 23:45–Mon 02 Nov 2026, 00:15 America/New_York "
+                      "(Mon 02 Nov 2026, 04:45–05:15 UTC)", proposal)
+        legacy = {k: v for k, v in report.items() if k != "timezone"}
+        self.assertEqual(page_data(render_html(legacy, snapshot))["options"][0]["proposal"], proposal)
+        self.assertIn("05:45–06:15 UTC", page_data(render_html(legacy))["options"][0]["proposal"])

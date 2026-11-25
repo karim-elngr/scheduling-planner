@@ -22,6 +22,18 @@
         "metadata": {"type": "object"},
         "timezone": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
         "focus_people": {"$ref": "#/$defs/ids"},
+        "maker_target": {
+          "type": "object",
+          "description": "Require one uninterrupted block of observed working time for this person, optionally within a dated window.",
+          "required": ["person", "duration_minutes"],
+          "additionalProperties": false,
+          "properties": {
+            "person": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+            "duration_minutes": {"$ref": "snapshot-v1.schema.json#/$defs/duration"},
+            "window": {"$ref": "snapshot-v1.schema.json#/$defs/window"},
+            "metadata": {"type": "object"}
+          }
+        },
         "movable_rituals": {"$ref": "#/$defs/ids"},
         "cluster": {
           "type": "object",

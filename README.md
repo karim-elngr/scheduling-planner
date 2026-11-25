@@ -44,6 +44,8 @@ schedule-plan --demo > brief.json
 schedule-plan visualize brief.json --output proposal.html
 ```
 
+To investigate whether moving existing 1:1s opens maker time, follow the [authorized reader to proposal workflow](.agents/skills/plan-meetings/references/solver-playbook.md#plan-and-share-a-week). It includes a runnable [two-ritual batch](examples/ritual-day-batch.json), coworker reads, stable ritual IDs, and a dated two-hour maker target. A host can rehearse the final handoff on real evidence with the [read-only apply checklist](docs/apply.md#rehearse-with-a-read-only-calendar).
+
 See the [portfolio and calendar input guide](docs/portfolio.md) for data formats and proof scope, and the [organizer apply workflow](docs/apply.md) to prepare and approve calendar changes.
 
 ## Give the skill to an agent

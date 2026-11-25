@@ -53,6 +53,59 @@ class BatchEvidence(unittest.TestCase):
             {"calendar_id": "A", "event_id": "masked"},
             {"calendar_id": "B", "event_id": "b-provider", "etag": "revision"}])
 
+    def test_host_policy_and_shared_provider_ids_resolve_without_changing_the_batch(self):
+        data = batch()
+        del data["request"]
+        common = {"uid": "shared-uid", "start": "2026-11-25T09:00Z", "duration_minutes": 30,
+                  "attendees": ["A", "B"]}
+        data["calendars"]["A"]["events"] = [{**common, "id": "a-instance", "etag": "revision",
+                                             "host_id": "weekly-check-in", "alternatives": [
+                                                 "2026-11-25T13:00+04:00", "2026-11-25T14:00+04:00"]}]
+        data["calendars"]["B"]["events"] = [{**common, "id": "b-instance",
+                                             "alternatives": ["2026-11-25T10:00Z"]}]
+        data["portfolio"] = {"movable_rituals": ["weekly-check-in", "b-instance"],
+                             "cluster": {"events": ["a-instance"]}}
+        result = build_snapshot(data)
+        self.assertEqual(result["metadata"]["event_id_map"],
+                         {name: ["shared-uid"] for name in ("weekly-check-in", "a-instance", "b-instance", "shared-uid")})
+        self.assertEqual(result["portfolio"], {"movable_rituals": ["shared-uid"], "cluster": {"events": ["shared-uid"]}})
+        event, = result["events"]
+        self.assertEqual(event["alternatives"], ["2026-11-25T10:00Z"])
+        self.assertEqual(event["metadata"]["sources"][0], {"calendar_id": "A", "event_id": "a-instance", "etag": "revision"})
+        warning, = result["metadata"]["ingestion_warnings"]
+        self.assertIn("shared-uid", warning)
+        self.assertIn("original start", warning)
+        self.assertEqual(data["portfolio"]["movable_rituals"], ["weekly-check-in", "b-instance"])
+        self.assertEqual(data["portfolio"]["cluster"]["events"], ["a-instance"])
+        self.assertEqual(len(data["calendars"]["A"]["events"][0]["alternatives"]), 2)
+
+    def test_ambiguous_alias_and_unknown_reference_cannot_grant_a_move(self):
+        data = batch()
+        del data["request"]
+        occurrence = {"id": "organizer-copy", "uid": "first", "host_id": "second",
+                      "start": "2026-11-25T09:00Z", "duration_minutes": 30}
+        data["calendars"]["A"]["events"] = [occurrence, dict(occurrence, id="second", uid="second", host_id="other")]
+        result = build_snapshot(data)
+        self.assertEqual(result["metadata"]["event_id_map"]["second"], ["first", "second"])
+        data["portfolio"] = {"movable_rituals": ["second"]}
+        with self.assertRaisesRegex(ValueError, "ambiguous occurrence 'second'.*first.*second"):
+            build_snapshot(data)
+        data["portfolio"] = {"cluster": {"events": ["missing"]}}
+        with self.assertRaisesRegex(ValueError, "unknown occurrence 'missing'"):
+            build_snapshot(data)
+
+    def test_sole_incumbent_alternative_is_ignored_without_granting_other_times(self):
+        data = batch()
+        event = {"id": "fixed", "start": "2026-11-25T09:00Z", "duration_minutes": 30, "attendees": ["A"],
+                 "alternatives": ["2026-11-25T13:00+04:00"]}
+        data["calendars"]["A"]["events"] = [event]
+        result = build_snapshot(data)
+        self.assertEqual(result["events"][0]["alternatives"], [])
+        self.assertIn("original start", result["metadata"]["ingestion_warnings"][0])
+        event["alternatives"] = ["2026-11-25T10:00Z", "2026-11-25T14:00+04:00"]
+        with self.assertRaisesRegex(ValueError, "duplicate instants"):
+            build_snapshot(data)
+
     def test_conflicting_organizers_keep_the_shared_time_fixed(self):
         data = batch()
         common = {"id": "review", "start": "2026-11-25T09:00Z", "duration_minutes": 30,
@@ -148,6 +201,31 @@ class RecurringEvidence(unittest.TestCase):
         self.assertEqual(event["metadata"]["series_id"], "check")
         self.assertEqual(event["metadata"]["sources"], [
             {"calendar_id": "A", "series_id": "check", "original_date": "2026-11-24"}])
+
+    def test_moved_exception_uses_original_dated_alias_and_only_grants_that_occurrence(self):
+        data = batch()
+        del data["request"]
+        data["calendars"]["A"]["series"] = [{
+            "id": "provider-series", "host_id": "coaching", "uid": "ical-uid", "attendees": ["A"],
+            "start": "2026-11-25T12:00+04:00", "duration_minutes": 30,
+            "recurrence": {"frequency": "daily", "count": 2},
+            "exceptions": {"2026-11-25": {"id": "instance", "etag": "revision",
+                                          "start": "2026-11-27T13:00+04:00"}},
+        }]
+        data["portfolio"] = {"movable_rituals": ["coaching@2026-11-25"],
+                             "cluster": {"events": ["provider-series@2026-11-26"]}}
+        result = build_snapshot(data)
+        mapping = result["metadata"]["event_id_map"]
+        self.assertEqual(mapping["coaching"], ["ical-uid@2026-11-25", "ical-uid@2026-11-26"])
+        self.assertEqual(mapping["instance"], ["ical-uid@2026-11-25"])
+        self.assertEqual(result["portfolio"]["movable_rituals"], ["ical-uid@2026-11-25"])
+        self.assertEqual(result["portfolio"]["cluster"]["events"], ["ical-uid@2026-11-26"])
+        self.assertEqual(result["events"][0]["start"], "2026-11-27T09:00Z")
+        self.assertEqual(result["events"][0]["metadata"]["sources"][0]["event_id"], "instance")
+        self.assertNotIn("event_id", result["events"][1]["metadata"]["sources"][0])
+        data["portfolio"]["movable_rituals"] = ["coaching"]
+        with self.assertRaisesRegex(ValueError, "ambiguous occurrence"):
+            build_snapshot(data)
 
     def test_local_wall_clock_across_dst_and_finite_weekly_rule(self):
         data = batch()

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Resolve host ritual IDs during batch snapshot compilation, expose their compiled occurrence IDs, and warn when alternatives include the implicit original start.
+- Compare soft weekday preferences with their focus-time cost in portfolio briefs and organizer-local proposals. A per-person maker target can require a verified uninterrupted block in a dated window.
+- Show invitations with review signals in Calendar OS while retaining all invited minutes in load totals.
+
 - Bring exported briefs and portfolio plans into the demo’s calendar review interface. Compare options on per-person timelines, inspect original and proposed times, and save the selected proposal.
 
 - Build dated snapshots from roster profiles, recurring occurrences and shared calendar evidence.

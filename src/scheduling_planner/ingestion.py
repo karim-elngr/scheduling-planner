@@ -204,6 +204,18 @@ def _ids(values, label):
     return {nonempty_text(v, label) for v in arr(values, label)}
 
 
+def _occurrence_aliases(record, event, identity):
+    """Use original local dates for aliases, including rescheduled series instances."""
+    aliases = {identity, record["id"], event["id"]}
+    for row in (record, event):
+        if "host_id" in row:
+            aliases.add(nonempty_text(row["host_id"], "host_id"))
+    if "original_date" in event:
+        original = _date(event["original_date"], "original_date").isoformat()
+        aliases.update(f"{ref}@{original}" for ref in aliases - {identity})
+    return aliases
+
+
 def _view(event, owner, calendar_id, people, zone, window):
     if event.get("status") in ("cancelled", "canceled", "declined") or event.get("transparency") == "transparent":
         return None
@@ -250,6 +262,28 @@ def _view(event, owner, calendar_id, people, zone, window):
             **{k: event[k] for k in MOVE_FIELDS if k in event}}
 
 
+def _move_grant(views, warnings):
+    """Reconcile authorized replacements after normalizing equivalent start instants."""
+    grants = []
+    omitted_original = False
+    first = views[0]
+    start = timestamp_minute(first["start"])
+    for view in views:
+        if "alternatives" not in view and "move_windows" not in view:
+            continue
+        grant = {k: view[k] for k in MOVE_FIELDS if k in view}
+        if "alternatives" in grant:
+            values = arr(grant["alternatives"], f"{first['id']}.alternatives")
+            instants = [timestamp_minute(t, f"{first['id']}.alternatives") for t in values]
+            omitted_original |= start in instants
+            grant["alternatives"] = [iso(t) for t in sorted(instants) if t != start]
+        grants.append(grant)
+    if omitted_original:
+        warnings.append(f"Ignored the original start in alternatives for {first['id']!r}. Staying in place is implicit.")
+    same_grant = grants and all(grant == grants[0] for grant in grants)
+    return grants[0] if same_grant else {}
+
+
 def _combine(views, warnings):
     """Prefer richer authorized facts. Use conservative attendance and move grants."""
     first = views[0]
@@ -277,13 +311,35 @@ def _combine(views, warnings):
     metadata["ooo"] = any(v["metadata"]["ooo"] for v in views)
     for key in ("optional_attendees", "tentative_attendees"):
         metadata[key] = sorted({pid for v in views for pid in v["metadata"][key]})
-    grants = [{k: v[k] for k in MOVE_FIELDS if k in v} for v in views
-              if "alternatives" in v or "move_windows" in v]
-    same_grant = grants and all(grant == grants[0] for grant in grants)
     return {"id": first["id"], "start": first["start"], "duration_minutes": first["duration_minutes"],
             "attendees": attendees, "attendees_complete": complete,
             "move_tier": "protected" if any(v["move_tier"] == "protected" for v in views) else "ordinary",
-            "metadata": metadata, **(grants[0] if complete and same_grant and not metadata["ooo"] else {})}
+            "metadata": metadata, **(_move_grant(views, warnings) if complete and not metadata["ooo"] else {})}
+
+
+def _resolve_refs(values, label, id_map):
+    resolved = []
+    refs = [nonempty_text(ref, label) for ref in arr(values, label)]
+    require(len(set(refs)) == len(refs), f"{label} must contain unique IDs")
+    for ref in refs:
+        targets = id_map.get(ref, [])
+        require(targets, f"{label}: unknown occurrence {ref!r} in the collected window")
+        require(len(targets) == 1,
+                f"{label}: ambiguous occurrence {ref!r} matches {targets}; use a unique occurrence reference")
+        resolved.append(targets[0])
+    return list(dict.fromkeys(resolved))
+
+
+def _resolve_portfolio(portfolio, id_map):
+    policy = dict(obj(portfolio, "portfolio"))
+    if "movable_rituals" in policy:
+        policy["movable_rituals"] = _resolve_refs(policy["movable_rituals"], "portfolio.movable_rituals", id_map)
+    if "cluster" in policy:
+        cluster = dict(obj(policy["cluster"], "portfolio.cluster"))
+        if "events" in cluster:
+            cluster["events"] = _resolve_refs(cluster["events"], "portfolio.cluster.events", id_map)
+        policy["cluster"] = cluster
+    return policy
 
 
 def build_snapshot(batch):
@@ -310,8 +366,10 @@ def build_snapshot(batch):
                 for event in occurrences:
                     view = _view(event, pid, calendar.get("calendar_id", pid), roster.keys(), zone, window)
                     if view:
+                        view["aliases"] = _occurrence_aliases(record, event, view["id"])
                         groups[view["id"]][(view["start"], view["duration_minutes"])].append(view)
     events, warnings, reserved = [], [], set(groups)
+    aliases = defaultdict(set)
     for identity, placements in sorted(groups.items()):
         conflict = len(placements) > 1
         if conflict:
@@ -329,12 +387,19 @@ def build_snapshot(batch):
                 event["attendees"] = sorted({p for group in placements.values() for v in group for p in v["attendees"]})
                 for key in MOVE_FIELDS:
                     event.pop(key, None)
+            aliases[event["id"]].add(event["id"])
+            for view in views:
+                for alias in view["aliases"]:
+                    aliases[alias].add(event["id"])
             events.append(event)
+    id_map = {ref: sorted(targets) for ref, targets in sorted(aliases.items())}
     snapshot = {k: v for k, v in batch.items() if k not in ("window", "roster", "calendars")}
     snapshot.update(schema_version="1.1", evidence_policy="explicit", people=people, events=events,
                     metadata={**obj(batch.get("metadata", {}), "metadata"),
-                              "window": _pairs([window])[0],
+                              "window": _pairs([window])[0], "event_id_map": id_map,
                               "calendar_explainers": explainers, "ingestion_warnings": warnings})
+    if "portfolio" in snapshot:
+        snapshot["portfolio"] = _resolve_portfolio(snapshot["portfolio"], id_map)
     if "request" in snapshot:
         parse_snapshot(snapshot)
     else:
