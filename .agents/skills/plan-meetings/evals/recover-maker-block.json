@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.1",
+  "max_moves": 2,
+  "people": {
+    "Asha": {
+      "rest_minutes": 0,
+      "available": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ]
+    },
+    "Bo": {
+      "rest_minutes": 0,
+      "available": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ]
+    },
+    "Chao": {
+      "rest_minutes": 0,
+      "available": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ],
+      "busy_coverage": [
+        [
+          "2026-12-09T09:00Z",
+          "2026-12-09T13:00Z"
+        ]
+      ]
+    }
+  },
+  "events": [
+    {
+      "id": "standup",
+      "attendees": [
+        "Asha",
+        "Bo",
+        "Chao"
+      ],
+      "duration_minutes": 30,
+      "start": "2026-12-09T09:00Z"
+    },
+    {
+      "id": "demo-sync",
+      "attendees": [
+        "Asha",
+        "Bo"
+      ],
+      "attendees_complete": true,
+      "duration_minutes": 30,
+      "start": "2026-12-09T10:30Z",
+      "alternatives": [
+        "2026-12-09T09:30Z"
+      ]
+    },
+    {
+      "id": "ops-sync",
+      "attendees": [
+        "Asha",
+        "Chao"
+      ],
+      "attendees_complete": true,
+      "duration_minutes": 30,
+      "start": "2026-12-09T12:00Z",
+      "alternatives": [
+        "2026-12-09T10:00Z"
+      ]
+    }
+  ],
+  "requests": [],
+  "portfolio": {
+    "timezone": "UTC",
+    "focus_people": [
+      "Asha"
+    ],
+    "movable_rituals": [
+      "demo-sync",
+      "ops-sync"
+    ]
+  }
+}

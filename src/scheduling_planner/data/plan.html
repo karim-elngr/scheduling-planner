@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Calendar proposal</title>
+<style>
+:root {color-scheme:light; --ink:#192e32; --muted:#495f62; --line:#c9d6d3; --teal:#0e5e52; --paper:#fbfcf8}
+* {box-sizing:border-box}
+body {margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 "Inter",system-ui,sans-serif}
+main {max-width:66rem;margin:auto;padding:clamp(1rem,4vw,3rem)}
+header {border-bottom:2px solid var(--ink);padding-bottom:1rem}
+h1,h2,h3,p {margin:0}
+h1 {font:normal clamp(2.4rem,6vw,4.2rem)/1.15 "DM Serif Text",Georgia,serif}
+h2 {font:normal 1.85rem/1.25 "DM Serif Text",Georgia,serif;margin-bottom:.65rem}
+header p,.quiet,.attendees,time {color:var(--muted)}
+#scope {margin-top:.75rem}
+.controls {display:flex;align-items:end;flex-wrap:wrap;gap:1rem 2rem;margin:1.5rem 0}
+label {font-size:.88rem;font-weight:650}
+select,button {color:var(--ink);background:white;border:1px solid #849c99;border-radius:.35rem;font:inherit;padding:.45rem .65rem}
+select {display:block;max-width:100%;margin-top:.25rem}
+button {cursor:pointer;line-height:1.2}
+:focus-visible {outline:3px solid #0c726b;outline-offset:2px}
+input {accent-color:var(--teal)}
+section,details {margin:1.6rem 0}
+#evidence {font-weight:650}
+#notes {padding-left:1.25rem;margin:.5rem 0}
+.week-head,.day {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.5rem 1rem}
+.week-head strong {font-size:1rem;border-bottom:2px solid var(--ink);padding-bottom:.5rem}
+.day {padding:.8rem 0;border-bottom:1px solid var(--line)}
+.day h3 {grid-column:1/-1;font-size:.95rem}
+ol {list-style:none;padding:0;margin:0}
+.event {background:#f0f4f0;border-left:.25rem solid #8c9f9d;padding:.55rem .7rem;margin:.35rem 0;overflow-wrap:anywhere}
+.event.new {background:#e2f2e9;border-color:#28745a}
+.event.moved {background:#fbefdc;border-color:#a8680c}
+.event b,.event small,.event time {display:block}
+time {font-variant-numeric:tabular-nums;font-size:.88rem}
+.event small {font-size:.82rem}
+.kind {font-size:.78rem;font-weight:650}
+.empty {font-size:.88rem;color:var(--muted);padding:.55rem 0}
+.table-wrap {overflow:auto}
+table {border-collapse:collapse;width:100%;font-size:.92rem}
+th,td {text-align:left;border-bottom:1px solid var(--line);padding:.6rem .5rem}
+th {vertical-align:bottom}
+summary {cursor:pointer;font-weight:650;color:var(--teal)}
+[hidden] {display:none !important}
+@media(max-width:480px){.week-head,.day{column-gap:.5rem}.event{padding:.4rem}.controls{gap:.5rem 1rem}}
+@media print {.controls,button {display:none} .event{break-inside:avoid} section{break-inside:auto}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Calendar proposal</h1><p id="scope"></p></header>
+<noscript>Enable JavaScript in this file to compare proposed schedules.</noscript>
+<div class="controls">
+<label id="plan-label" hidden>Schedule<select id="plan"></select></label>
+<label>Display times in<select id="zone"><option>UTC</option></select></label>
+<label id="filter-label" hidden><input id="filter" type="checkbox"> Changes only</label>
+</div>
+<div aria-live="polite"><p id="evidence"></p><ul id="notes"></ul></div>
+<section aria-labelledby="week-title">
+<h2 id="week-title">Week comparison</h2>
+<div class="week-head"><strong>Current week</strong><strong>Proposed week</strong></div><div id="days"></div>
+</section>
+<section id="comparison" hidden><h2>Move budgets</h2><div class="table-wrap"><table>
+<thead><tr id="headers"></tr></thead><tbody id="caps"></tbody></table></div></section>
+<details id="profiles" hidden><summary>Roster hours and weekends</summary><ul id="explainers"></ul></details>
+</main>
+<script id="calendar-data" type="application/json">{{CALENDAR_DATA}}</script>
+<script>
+"use strict";
+const data = JSON.parse(document.getElementById("calendar-data").textContent);
+const el = id => document.getElementById(id);
+function node(tag, text, css) {
+  const n = document.createElement(tag);
+  if (text != null) n.textContent = text;
+  if (css) n.className = css;
+  return n;
+}
+function dateFormat(zone, options) {
+  return new Intl.DateTimeFormat("en-GB", {timeZone:zone, ...options});
+}
+const picker = el("plan");
+const zones = el("zone");
+for (const zone of data.timezones) {
+  if (zone === "UTC") continue;
+  try { dateFormat(zone, {}).format(0); }
+  catch { continue; }
+  zones.add(new Option(zone, zone));
+}
+for (const option of data.options) {
+  picker.add(new Option(option.label, option.id));
+}
+if (data.primary && data.options.some(o => o.id === data.primary)) picker.value = data.primary;
+el("scope").textContent = data.status + (data.fullSnapshot ? " · Snapshot calendar" : " · Showing reported changes only");
+el("plan-label").hidden = data.options.length < 2;
+el("filter-label").hidden = !data.fullSnapshot || !data.options.length;
+for (const note of data.explainers) el("explainers").append(node("li", note));
+el("profiles").hidden = !data.explainers.length;
+
+function collect(option) {
+  const before = new Map();
+  const after = new Map();
+  if (!el("filter").checked) {
+    for (const event of data.current) {
+      before.set(event.id, {event, kind:""});
+      if (option) after.set(event.id, {event, kind:""});
+    }
+  }
+  for (const move of option?.moves || []) {
+    before.set(move.before.id, {event:move.before, kind:"moved"});
+    after.set(move.after.id, {event:move.after, kind:"moved"});
+  }
+  const additions = (option?.placements || []).map(event => ({event, kind:"new"}));
+  return [[...before.values()], [...after.values(), ...additions]];
+}
+function render() {
+  const option = data.options.find(o => o.id === picker.value);
+  el("evidence").textContent = option?.evidence || "No schedule was returned.";
+  el("notes").replaceChildren(...(option?.notes || []).map(n => node("li", n)));
+  const calendar = el("days");
+  calendar.replaceChildren();
+  const date = dateFormat(zones.value, {weekday:"short", day:"numeric", month:"short", year:"numeric"});
+  const time = dateFormat(zones.value, {hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
+  const days = new Map();
+  // Insertion order follows chronological start time, including simultaneous events.
+  const entries = collect(option).flatMap((column, side) => column.map(entry => ({...entry, side})));
+  entries.sort((a,b) => a.event.start.localeCompare(b.event.start) || a.event.title.localeCompare(b.event.title));
+  for (const {event, kind, side} of entries) {
+    const start = new Date(event.start), end = new Date(event.end);
+    const dateLabel = date.format(start);
+    if (!days.has(dateLabel)) days.set(dateLabel, [[], []]);
+    const card = node("li", null, "event " + kind);
+    if (kind) card.append(node("span", kind === "new" ? "New meeting" : side ? "Moved to" : "Moved from", "kind"));
+    const endLabel = dateLabel === date.format(end) ? "" : date.format(end) + " ";
+    const range = node("time", time.format(start) + " – " + endLabel + time.format(end));
+    range.dateTime = event.start;
+    card.append(range, node("b", event.title));
+    if (event.attendees.length) card.append(node("small", event.attendees.join(", "), "attendees"));
+    if (event.organizer) card.append(node("small", "Organizer: " + event.organizer));
+    days.get(dateLabel)[side].push(card);
+  }
+  for (const [dateLabel, columns] of days) {
+    const day = node("div", null, "day");
+    day.append(node("h3", dateLabel));
+    for (const [index, cards] of columns.entries()) {
+      const list = node("ol");
+      list.setAttribute("aria-label", (index ? "Proposed" : "Current") + " on " + dateLabel);
+      list.append(...(cards.length ? cards : [node("li", "—", "empty")]));
+      day.append(list);
+    }
+    calendar.append(day);
+  }
+  if (!days.size) calendar.append(node("p", "No events to display.", "empty"));
+}
+for (const header of data.headers) el("headers").append(node("th", header));
+const selectable = new Map(data.options.map(o => [o.id, o]));
+for (const row of data.comparison) {
+  const tr = node("tr");
+  for (const [i, cell] of row.cells.entries()) {
+    const td = node("td", cell ?? "—");
+    if (i === 0 && selectable.has(row.option)) {
+      const button = node("button", cell);
+      button.type = "button";
+      button.setAttribute("aria-label", "Show plan for move budget " + cell);
+      button.addEventListener("click", () => {picker.value = row.option; render();});
+      td.replaceChildren(button);
+    }
+    tr.append(td);
+  }
+  el("caps").append(tr);
+}
+el("comparison").hidden = !data.comparison.length;
+for (const control of [picker, zones, el("filter")]) control.addEventListener("change", render);
+render();
+</script></body></html>

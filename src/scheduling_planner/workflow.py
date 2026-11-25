@@ -34,10 +34,20 @@ def _occurrence_fields(event):
 def _read_missing(snapshot, read_person, trace):
     """Read missing invitee records; outside identities need an explicitly supplied record."""
     people = snapshot.setdefault("people", {})
-    events = list(snapshot.get("events", []))
-    by_id = {event["id"]: event for event in events}
-    if len(events) != len(by_id):
-        raise ValueError("duplicate occurrence IDs in supplied snapshot")
+    by_id = {}
+
+    def record(event):
+        key = event["id"]
+        if key not in by_id:
+            by_id[key] = deepcopy(event)
+        elif _occurrence_fields(by_id[key]) != _occurrence_fields(event):
+            trace.append({"action": "clarify", "reason": "conflicting_occurrence", "subject": key})
+            return False
+        return True
+
+    for event in snapshot.get("events", []):
+        if not record(event):
+            return False
     for person in snapshot["request"]["attendees"]:
         if person in people or read_person is None:
             continue
@@ -51,15 +61,9 @@ def _read_missing(snapshot, read_person, trace):
         for event in response.get("events", []):
             if person not in event["attendees"]:
                 raise ValueError("returned event is unrelated to the requested person")
-            if event["id"] in by_id:
-                previous = by_id[event["id"]]
-                if _occurrence_fields(previous) != _occurrence_fields(event):
-                    trace.append({"action": "clarify", "reason": "conflicting_occurrence",
-                                  "subject": event["id"]})
-                    return False
-            else:
-                events.append(deepcopy(event))
-                by_id[event["id"]] = events[-1]
+            if not record(event):
+                return False
+    events = list(by_id.values())
     snapshot["events"] = events
     referenced = set(snapshot["request"]["attendees"])
     for event in events:

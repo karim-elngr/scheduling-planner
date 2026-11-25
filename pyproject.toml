@@ -29,7 +29,7 @@ version = {attr = "scheduling_planner._version.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-scheduling_planner = ["schemas/*.json", "data/*.json"]
+scheduling_planner = ["schemas/*.json", "data/*.json", "data/*.html"]
 
 [tool.ruff]
 target-version = "py311"

@@ -1,0 +1,11 @@
+{
+  "profile_version": "1.0",
+  "name": "Launch-week decision forum",
+  "objective": ["protected_moves", "start", "moved_meetings", "people_disrupted", "soft_penalty"],
+  "rankings": ["earliest", "least_disruption", "preferred"],
+  "min_gain_minutes": 15,
+  "guidance": {
+    "gather": ["Confirm the release cutoff, decision owners and which rituals their organizers allow the solver to move."],
+    "explain": ["Compare the earliest verified decision against waiting. Name the organizer and anyone outside the forum affected by a change."]
+  }
+}

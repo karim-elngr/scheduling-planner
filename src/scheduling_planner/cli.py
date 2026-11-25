@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from importlib import import_module
 from importlib.resources import files
 import json
+import os
 from math import isfinite
 from pathlib import Path
 import runpy
@@ -85,8 +86,90 @@ def demo_snapshot():
     return json.loads(data.read_text(encoding="utf-8"))
 
 
+_COMMANDS = {
+    "batch-snapshot": "build a dated snapshot from a roster and calendar evidence",
+    "calendar-os": "diagnose meeting load and propose a weekly template",
+    "portfolio": "schedule multiple requests together and compare move budgets",
+    "visualize": "render a saved scheduling decision as offline HTML",
+    "export-pack": "write an HTML calendar, snapshot and plain-text proposal",
+    "prepare-apply": "prepare the exact calendar changes for organizer review",
+    "apply-plan": "apply an approved manifest using the organizer's Google Calendar",
+}
+
+
+def _calendar_command(command, argv):
+    parser = argparse.ArgumentParser(prog=f"schedule-plan {command}", description=_COMMANDS[command])
+    parser.add_argument("input", help="JSON document path, or - for stdin")
+    if command == "portfolio":
+        parser.add_argument("--time-limit", type=float, default=DEFAULT_TIME_LIMIT_SECONDS)
+        parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+        parser.add_argument("--compare-moves", action="store_true")
+        parser.add_argument("--proof-lite", action="store_true", help="stop after finding a feasible assignment")
+    if command in {"visualize", "export-pack", "prepare-apply"}:
+        parser.add_argument("--snapshot", required=command != "visualize", help="source snapshot JSON")
+    if command in {"visualize", "export-pack"}:
+        parser.add_argument("--output", required=True, type=Path, help="HTML file or export pack directory")
+    if command == "prepare-apply":
+        parser.add_argument("--bindings", required=True, help="organizer calendar and provider event identifiers")
+        parser.add_argument("--option-id", help="choose a specific verified option")
+    if command == "apply-plan":
+        parser.add_argument("--approve", required=True, help="digest of the reviewed calendar changes")
+    args = parser.parse_args(argv)
+    try:
+        document = _read_json(args.input)
+        if not isinstance(document, dict):
+            raise ValueError("expected a JSON object")
+        if command == "batch-snapshot":
+            from .ingestion import build_snapshot
+
+            result = build_snapshot(document)
+        elif command == "calendar-os":
+            from .calendar_os import diagnose_week
+
+            result = diagnose_week(document)
+        elif command == "portfolio":
+            from .portfolio import solve_portfolio
+
+            result = solve_portfolio(document, compare_moves=args.compare_moves, proof_lite=args.proof_lite,
+                                     time_limit_seconds=args.time_limit, workers=args.workers)
+        elif command == "visualize":
+            from .visualize import render_html
+
+            snapshot = _read_json(args.snapshot) if args.snapshot else None
+            args.output.write_text(render_html(document, snapshot), encoding="utf-8")
+            return
+        elif command == "export-pack":
+            from .visualize import export_pack
+
+            export_pack(document, _read_json(args.snapshot), args.output)
+            return
+        elif command == "prepare-apply":
+            from .apply import prepare_apply
+
+            result = prepare_apply(_read_json(args.snapshot), document, _read_json(args.bindings), args.option_id)
+        else:
+            from .apply import apply_google
+
+            result = apply_google(document, args.approve, os.environ.get("GOOGLE_CALENDAR_ACCESS_TOKEN"))
+        print(json.dumps(result, indent=2, allow_nan=False))
+        if command == "apply-plan" and result["status"] != "applied":
+            parser.exit(1)
+    except ModuleNotFoundError as error:
+        if error.name != "ortools":
+            raise
+        parser.exit(1, "schedule-plan: solving requires OR-Tools. Install the project dependencies.\n")
+    except (KeyError, TypeError, AttributeError) as error:
+        parser.exit(2, f"{parser.prog}: invalid input document ({error})\n")
+    except (OSError, ValueError) as error:
+        parser.exit(2, f"{parser.prog}: {error}\n")
+
+
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="schedule-plan", description="Find group meeting plans with Google OR-Tools CP-SAT.")
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in _COMMANDS:
+        return _calendar_command(argv[0], argv[1:])
+    parser = argparse.ArgumentParser(prog="schedule-plan", description="Find group meeting plans with Google OR-Tools CP-SAT.",
+                                     epilog="Calendar commands (use COMMAND --help): " + ", ".join(_COMMANDS))
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("snapshot", nargs="?", help="JSON snapshot path, or - for stdin (default)")
     parser.add_argument("--demo", action="store_true", help="use the packaged, five-person scheduling scenario")
@@ -107,7 +190,7 @@ def main(argv=None):
     parser.add_argument("--compare-moves", action="store_true", help="compare permitted move counts within one budget")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--show-profile", action="store_true", help="validate and print the provided profile")
-    for flag, schema in [("--schema", "snapshot-v1"), ("--profile-schema", "advisor-profile-v1"),
+    for flag, schema in [("--schema", "snapshot-v1"), ("--portfolio-schema", "portfolio-v1"), ("--profile-schema", "advisor-profile-v1"),
                          ("--result-schema", "result-v1"), ("--advice-schema", "advice-v1"),
                          ("--brief-schema", "brief-v1")]:
         modes.add_argument(flag, dest="schema", action="store_const", const=schema,

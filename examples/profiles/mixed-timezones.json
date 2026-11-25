@@ -1,0 +1,9 @@
+{
+  "profile_version": "1.0",
+  "name": "Dubai and Riyadh delivery squad",
+  "objective": ["protected_moves", "moved_meetings", "soft_penalty", "people_disrupted", "start"],
+  "guidance": {
+    "gather": ["Read each person's dated working windows in Asia/Dubai or Asia/Riyadh. Confirm which attendees observe a Friday–Saturday weekend before including Friday."],
+    "explain": ["Give local dates and times for both offices and identify whose hours limit the common window."]
+  }
+}

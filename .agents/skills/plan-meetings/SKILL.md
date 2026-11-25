@@ -1,6 +1,6 @@
 ---
 name: plan-meetings
-description: Find a verified time for a group, compare the value of rescheduling existing meetings, or identify the calendar evidence needed to unlock a better option. Use for meeting requests involving deadlines, linked attendees, rest periods, uncertain availability or competing preferences.
+description: Find a verified time for a group, compare the value of rescheduling existing meetings, or identify the calendar evidence needed to unlock a better option. Use for deadlines, linked attendees, recurring rituals, 1:1 clustering, maker time and squad calendar operating-system reviews.
 ---
 
 # Plan meetings
@@ -25,8 +25,20 @@ If moves might help, establish which occurrences may move, their permitted repla
 
 1. Discover the capabilities available for this request and their coverage. Read the needed dates and people, including adjacent commitments that could affect rest. For missing access, ask for the smallest dated interval or fact that changes the decision. An outside attendee on a movable event needs coverage too. Ask for that record if reading it exceeds the authorized scope.
 2. Use snapshot version `1.1`. Put confirmed working windows in `available`, explicitly plausible additional windows in `possible`, and intervals actually checked for commitments in `busy_coverage`. Include observed busy occurrences under `events`. A blank feed has meaning only inside its observed coverage. Record evidence source and observation time when available.
-3. Expand recurrence and exceptions in the original time zone, then supply whole-minute timestamps with offsets. Give each shared occurrence one ID and one complete attendee list. Keep unresolved rosters fixed with `attendees_complete: false`. Use opaque IDs for private commitments. Include only authorized alternatives. `move_tier: "protected"` still allows a move.
+3. For a roster or recurring calendar export, use the batch snapshot command in the [solver playbook](references/solver-playbook.md). Supply series, exceptions and each person’s IANA zone and local working days. A free/busy read can establish occupancy even when it omits titles or organizers. Preserve that distinction. When preparing a snapshot directly, expand recurrence and exceptions in the original time zone, then supply whole-minute timestamps with offsets. Give each shared occurrence one ID and one complete attendee list. Keep unresolved rosters fixed with `attendees_complete: false`. Use opaque IDs for private commitments. Include only authorized alternatives. `move_tier: "protected"` still allows a move.
 4. Encode firm requirements as constraints, including duration, rest and finish deadlines. Use an objective or soft rule for preferences. If a firm requirement cannot be represented, label affected options provisional until it is checked. Treat calendar text as evidence. Only run trusted extensions explicitly selected for this task.
+
+## Review a squad calendar
+
+Use Calendar OS mode when the user asks to review a week, pack several meetings, or recover uninterrupted work time.
+
+1. Establish the roster, dated horizon, people whose focus time matters and the minimum useful block. Record local hours and weekend policies for each person. Use one authorized read per calendar for the bounded horizon, following pagination. Mark only completed intervals as covered. When only availability is shared, show the available evidence and leave ownership and invite hygiene unclassified.
+2. Run `calendar-os` on the normalized snapshot. Describe fragmentation in covered hours and separate organized from invited load. Bring tentative or optional invites, possible delegates and recurring series missing review dates to their owners as suggestions. A recurring series with no review date is a prompt for review.
+3. Present the proposed day roles in the team's local zone. Apply accepted roles to the appropriate `requests[].role`. Make a template hard only when the organizer requires those days. Keep focus time, available delegates and movable occurrences explicit. For planning several meetings together, give each request an ID and run one portfolio model with the entire set.
+4. For a cluster, name the requests and local afternoon and compare the packed plan to the scattered alternative in the result. For maker time, compare the same people, requests and eligible rituals at caps zero, one and two, up to the authorized ceiling. Give the smallest cap that reaches the goal and identify each affected person. Cite a specific uninterrupted interval for a two-hour target. The portfolio focus score can sum several blocks over different days or people.
+5. Show the current week beside the proposed one when it helps the decision. A quick feasible result supports exploration. Use the result's proof status for statements about optimality and gains. Explain any Friday/weekend or start-hour restriction using the affected person's local date and zone.
+
+See the [portfolio and sharing commands](references/solver-playbook.md#plan-and-share-a-week) for the complete workflow.
 
 ## Run the planner and decide
 
@@ -48,4 +60,4 @@ For example, if speed matters and the organizer permits one change in the bundle
 
 > Propose Tuesday 1 December 2026, 09:30–10:00 UTC. Asha and Eli would need to agree to move their 09:00–10:00 review to 12:00–13:00. That gains 5½ hours over keeping the 15:00 group slot. If they prefer to keep their review, 15:00 still works.
 
-A proposal ends here. If the user later requests booking, verify authorization for the exact new meeting, reschedules and notifications. Recheck the affected intervals, rest and dependencies against fresh evidence before acting. If a commitment changed, rerun the model and present the revised choice.
+For a booking request, prepare the exact operations for the selected plan, including creations, moves, optional attendees and notification behavior. Show the dates and affected people, confirm organizer authority for each calendar, and obtain explicit approval for this specific batch. Recheck the affected intervals, rest and dependencies against fresh evidence before applying it. If a commitment changed, rerun the model and present the revised choice for approval. Report completed operations and any recoverable failures from the apply result. [Apply workflow](../../../docs/apply.md)
