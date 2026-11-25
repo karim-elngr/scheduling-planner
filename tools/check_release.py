@@ -43,7 +43,7 @@ def check(directory):
             ".agents/skills/plan-meetings/references/solver-playbook.md",
             ".agents/skills/plan-meetings/evals/scenarios.json",
             "examples/team_heuristics.py", "examples/team_rules.py", "tests/test_advisor.py",
-            "examples/squad-week-batch.json", "docs/batch-snapshot.md", "docs/portfolio.md",
+            "examples/squad-week-batch.json", "examples/ritual-day-batch.json", "docs/batch-snapshot.md", "docs/portfolio.md",
             "docs/calendar-os.md", "docs/apply.md",
         ]
         for filename in required:

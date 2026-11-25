@@ -86,6 +86,24 @@ class CalendarOsTests(unittest.TestCase):
         self.assertEqual(len(report["invite_hygiene"]), 1)
         self.assertIn("decline", report["invite_hygiene"][0]["suggestion"])
 
+    def test_signal_free_invites_contribute_to_load_and_only_signals_get_reviews(self):
+        snapshot = week()
+        snapshot["people"]["bea"]["metadata"] = {"squad": "payments"}
+        metadata = snapshot["events"][0]["metadata"]
+        metadata.pop("optional_attendees")
+        metadata.pop("tentative_attendees")
+        report = diagnose_week(snapshot)
+        self.assertEqual(report["invite_hygiene"], [])
+        self.assertEqual(report["people"]["bea"]["invited_minutes"], 60)
+        snapshot["events"].append(dict(snapshot["events"][0], id="extra", metadata={
+            "organizer": "ada", "optional_attendees": ["bea"],
+        }))
+        report = diagnose_week(snapshot)
+        self.assertEqual(report["people"]["bea"]["invited_minutes"], 120)
+        self.assertEqual(report["invite_hygiene"], [
+            {"event_id": "extra", "person": "bea", "score": 1, "signals": ["optional"], "suggestion": None},
+        ])
+
     def test_proposes_soft_template_from_observed_weekdays(self):
         report = diagnose_week(week())
         self.assertEqual(report["template_proposal"]["week_template"], [

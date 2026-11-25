@@ -18,9 +18,10 @@ from ortools.sat.python import cp_model as cp
 from .config import time_limit, worker_count
 from .domain import (
     EPOCH, MAX_MINUTE, MIN_MINUTE, arr, covers, fields, intersect_windows, iso, local_datetime, local_days, nonempty_text, obj,
-    read_calendar, read_meeting, require, snapshot_digest, whole_number,
+    read_calendar, read_meeting, require, snapshot_digest, whole_number, window_pairs,
 )
 from .move_comparison import _caps
+from .portfolio_tradeoffs import explain_tradeoffs
 
 
 def _ids(values, label, known=None, nonempty=False):
@@ -57,6 +58,19 @@ def _range(left, right):
 
 
 @dataclass(frozen=True)
+class MakerTarget:
+    person: str
+    duration: int
+    window: tuple[int, int] | None
+
+    def describe(self):
+        info = {"person": self.person, "duration_minutes": self.duration, "status": "unknown", "witness": None}
+        if self.window:
+            info["window"] = [iso(t) for t in self.window]
+        return info
+
+
+@dataclass(frozen=True)
 class Policy:
     zone: ZoneInfo
     movable: set
@@ -65,11 +79,12 @@ class Policy:
     cluster_hours: tuple
     template: dict
     preferences: dict
+    maker_target: MakerTarget | None
 
 
 def _policy(raw, people, events, requests, event_facts):
-    fields(raw, {"timezone", "movable_rituals", "focus_people", "cluster", "week_template", "preferences"},
-           "portfolio")
+    fields(raw, {"timezone", "movable_rituals", "focus_people", "cluster", "week_template", "preferences",
+                 "maker_target"}, "portfolio")
     zone = _zone(raw.get("timezone", "UTC"))
     event_ids = [event.id for event in events]
     movable = _ids(raw.get("movable_rituals", event_ids), "movable_rituals", event_ids)
@@ -109,7 +124,16 @@ def _policy(raw, people, events, requests, event_facts):
             lunch = _range(*pair)
         cap = whole_number(row["max_meetings_per_day"], "max_meetings_per_day", 0) if "max_meetings_per_day" in row else None
         prefs[pid] = (_minute(row.get("not_before", "00:00")), lunch, cap)
-    return Policy(zone, set(movable), focus, set(cluster_ids), hours, template, prefs)
+    target = None
+    if "maker_target" in raw:
+        spec = raw["maker_target"]
+        fields(spec, {"person", "duration_minutes", "window"}, "maker_target")
+        pid = nonempty_text(spec.get("person"), "maker_target.person")
+        require(pid in people, "maker_target.person must be in the roster")
+        duration = whole_number(spec.get("duration_minutes"), "maker_target.duration_minutes", 1)
+        window = window_pairs([spec["window"]], "maker_target.window")[0] if "window" in spec else None
+        target = MakerTarget(pid, duration, window)
+    return Policy(zone, set(movable), focus, set(cluster_ids), hours, template, prefs, target)
 
 
 @dataclass(frozen=True)
@@ -253,12 +277,32 @@ def _focus(model, flags, person, choices, zone):
             blocks.append(started)
             by_day[day].append(length)
             run, previous_busy = length, busy
-    maxima = []
+    maxima = {}
     for day, terms in by_day.items():
         longest = model.new_int_var(0, bounds[day], "longest_free_minutes")
         model.add_max_equality(longest, terms)
-        maxima.append(longest)
-    return sum(maxima), sum(blocks)
+        maxima[day] = longest
+    return maxima, sum(blocks)
+
+
+def _maker_block(model, target, person, choices, flags):
+    # The entire interval must be inside observed working time. An overnight
+    # shift can contain a maker block that spans a local-day boundary.
+    windows = list(intersect_windows(person.available, person.busy_coverage or ()))
+    if target.window:
+        windows = intersect_windows(windows, [target.window])
+    starts = [(left, right - target.duration) for left, right in windows if right - left >= target.duration]
+    if not starts:
+        model.add(False)
+        return None
+
+    start = model.new_int_var_from_domain(cp.Domain.from_intervals(starts), "maker_block_start")
+    for choice in choices:
+        # [start, start + duration) overlaps [choice.start, choice.end)
+        # exactly for the following integer starts. Endpoints may touch.
+        overlap = cp.Domain(choice.start - target.duration + 1, choice.end - 1)
+        model.add_linear_expression_in_domain(start, overlap.complement()).only_enforce_if(flags[choice])
+    return start
 
 
 def _preference_cost(model, flags, choices, zone, pref):
@@ -354,23 +398,36 @@ def _compile(data, budget):
     model.add(sum(moves) <= min(budget, len(data.events)))
     for pid, group in by_person.items():
         _resources(model, group, flags, data.people[pid].rest)
-    totals = [_focus(model, flags, data.people[p], by_person[p], data.zones[p]) for p in policy.focus_people]
+    daily_maxima = {}
+    free_blocks = 0
+    for person in policy.focus_people:
+        maxima, blocks = _focus(model, flags, data.people[person], by_person[person], data.zones[person])
+        daily_maxima.update(((person, day), longest) for day, longest in maxima.items())
+        free_blocks += blocks
     penalties = sum(_preference_cost(model, flags, by_person[p], data.zones[p], pref)
                     for p, pref in policy.preferences.items())
     outside, days, span = _cluster(model, groups, flags, policy.cluster, policy.cluster_hours, policy.zone)
-    return model, flags, {
+    maker_start = None
+    if policy.maker_target:
+        pid = policy.maker_target.person
+        maker_start = _maker_block(model, policy.maker_target, data.people[pid], by_person[pid], flags)
+    return model, flags, maker_start, daily_maxima, {
         "protected_moves": sum(protected_moves), "preference_penalty": penalties + sum(flags[c] for c in data.soft),
         "cluster_outside_hours": outside, "cluster_days": days, "cluster_span_minutes": span,
-        "focus_minutes": sum(x for x, _ in totals), "free_blocks": sum(x for _, x in totals),
+        "focus_minutes": sum(daily_maxima.values()), "free_blocks": free_blocks,
         "moved_meetings": sum(moves),
         "start_offset_minutes": sum(offsets),
     }
 
 
-def _read(solver, flags, metrics):
-    placements, moves = [], []
+def _read(solver, flags, metrics, soft):
+    placements, moves, weekday_misses = [], [], []
     for choice, flag in flags.items():
-        if not solver.value(flag) or choice.stays:
+        if not solver.value(flag):
+            continue
+        if choice in soft:
+            weekday_misses.append(choice.id)
+        if choice.stays:
             continue
         row = {"id": choice.id, "end": iso(choice.end), "attendees": list(choice.attendees)}
         if choice.original is None:
@@ -380,14 +437,18 @@ def _read(solver, flags, metrics):
             placements.append(row)
         else:
             moves.append(dict(row, **{"from": iso(choice.original), "to": iso(choice.start)}))
-    return {"placements": placements, "moves": moves, "metrics": {k: solver.value(v) for k, v in metrics.items()}}
+    return {"placements": placements, "moves": moves, "week_template_misses": weekday_misses,
+            "metrics": {k: solver.value(v) for k, v in metrics.items()}}
 
 
-def _solve(data, budget, deadline, workers, lite, scatter=False):
+def _solve(data, budget, deadline, workers, lite, scatter=False, daily_focus=None):
     result = {"budget": budget, "status": "UNKNOWN", "placements": [], "moves": [], "metrics": {}}
+    target = data.policy.maker_target
+    if target:
+        result["maker_target"] = target.describe()
     if monotonic() >= deadline:
         return result
-    model, flags, metrics = _compile(data, budget)
+    model, flags, maker_start, daily_maxima, metrics = _compile(data, budget)
     solver = cp.CpSolver()
     solver.parameters.num_search_workers = workers
     objectives = [k for k, expr in metrics.items() if not isinstance(expr, int)]
@@ -411,10 +472,17 @@ def _solve(data, budget, deadline, workers, lite, scatter=False):
             raise ValueError(f"invalid portfolio model: {model.validate()}")
         if status == cp.INFEASIBLE:
             result["status"] = "INFEASIBLE"
+            if target:
+                result["maker_target"]["status"] = "infeasible"
             return result
         if status not in (cp.OPTIMAL, cp.FEASIBLE):
             return result
-        result.update(_read(solver, flags, metrics), status="FEASIBLE")
+        result.update(_read(solver, flags, metrics, data.soft), status="FEASIBLE")
+        if daily_focus is not None:
+            daily_focus.update((key, solver.value(longest)) for key, longest in daily_maxima.items())
+        if target:
+            start = solver.value(maker_start)
+            result["maker_target"].update(status="met", witness={"start": iso(start), "end": iso(start + target.duration)})
         if lite or status != cp.OPTIMAL:
             return result
         if key is not None:
@@ -446,13 +514,16 @@ def solve_portfolio(snapshot, *, time_limit_seconds=30.0, workers=1, proof_lite=
     jobs = [(cap, False), *((b, False) for b in budgets if b != cap)]
     if policy.cluster:
         jobs.append((cap, True))
-    rows = {}
+    rows, focus_by_budget = {}, {}
     for i, (budget, scatter) in enumerate(jobs):
         now = monotonic()
         stage_end = now + (deadline - now) / (len(jobs) - i)
-        rows[budget, scatter] = _solve(data, budget, stage_end, workers, proof_lite, scatter)
+        daily_focus = None
+        if compare_moves and not scatter and (soft or policy.preferences):
+            daily_focus = focus_by_budget[budget] = {}
+        rows[budget, scatter] = _solve(data, budget, stage_end, workers, proof_lite, scatter, daily_focus)
     primary = rows[cap, False]
-    report = dict(primary, kind="portfolio", evidence_policy=evidence, snapshot_sha256=digest,
+    report = dict(primary, kind="portfolio", timezone=policy.zone.key, evidence_policy=evidence, snapshot_sha256=digest,
                   snapshot_id=snapshot.get("snapshot_id"), proof_lite=proof_lite)
     if compare_moves:
         report["stages"] = [rows[b, False] for b in budgets]
@@ -472,4 +543,5 @@ def solve_portfolio(snapshot, *, time_limit_seconds=30.0, workers=1, proof_lite=
                               days_saved=reference["metrics"]["cluster_days"] - primary["metrics"]["cluster_days"],
                               focus_minutes_gained=primary["metrics"]["focus_minutes"] - reference["metrics"]["focus_minutes"])
         report["scatter_comparison"] = comparison
+    explain_tradeoffs(report, snapshot, focus_by_budget)
     return report

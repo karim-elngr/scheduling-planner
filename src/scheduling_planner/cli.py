@@ -104,6 +104,7 @@ def _calendar_command(command, argv):
         parser.add_argument("--time-limit", type=float, default=DEFAULT_TIME_LIMIT_SECONDS)
         parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
         parser.add_argument("--compare-moves", action="store_true")
+        parser.add_argument("--brief", action="store_true", help="return a compact portfolio decision with objective and tradeoffs")
         parser.add_argument("--proof-lite", action="store_true", help="stop after finding a feasible assignment")
     if command in {"visualize", "export-pack", "prepare-apply"}:
         parser.add_argument("--snapshot", required=command != "visualize", help="source snapshot JSON")
@@ -132,6 +133,8 @@ def _calendar_command(command, argv):
 
             result = solve_portfolio(document, compare_moves=args.compare_moves, proof_lite=args.proof_lite,
                                      time_limit_seconds=args.time_limit, workers=args.workers)
+            if args.brief:
+                result = brief(result)
         elif command == "visualize":
             from .visualize import render_html
 

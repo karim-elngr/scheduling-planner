@@ -26,6 +26,8 @@ def _source(option, advice, result):
 
 def brief(report: dict) -> dict:
     """Summarize the stored report without re-solving or transferring proofs between scopes."""
+    if report.get("kind") == "portfolio":
+        return _portfolio_brief(report)
     advice, result = report["advice"], report["result"]
     scope = result["scope"]
     options = []
@@ -63,3 +65,26 @@ def brief(report: dict) -> dict:
         "annotations": advice["annotations"], "move_comparison": comparison,
         "diagnosis": diagnosis,
     })
+
+
+def _portfolio_brief(report):
+    # Keep each budget's witness and provenance so an organizer can still
+    # visualize or export the decision. Omit intermediate ranking metrics.
+    def decision(row):
+        fields = ("status", "budget", "objective_summary", "tradeoff", "maker_target", "placements", "moves",
+                  "previous_budget", "focus_minutes_gained", "gain_proved", "days_saved", "proved")
+        view = {key: row[key] for key in fields if key in row}
+        metrics = row.get("metrics", {})
+        view["metrics"] = {key: metrics[key] for key in ("preference_penalty", "focus_minutes", "free_blocks",
+                                                         "cluster_days", "moved_meetings") if key in metrics}
+        return view
+
+    view = {"kind": "portfolio", "view": "brief", **decision(report)}
+    for key in ("snapshot_id", "snapshot_sha256", "timezone", "evidence_policy", "proof_lite"):
+        if key in report:
+            view[key] = report[key]
+    if "stages" in report:
+        view["stages"] = [decision(stage) for stage in report["stages"]]
+    if "scatter_comparison" in report:
+        view["scatter_comparison"] = decision(report["scatter_comparison"])
+    return deepcopy(view)

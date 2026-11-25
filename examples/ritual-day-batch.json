@@ -1,0 +1,51 @@
+{
+  "snapshot_id": "synthetic-ritual-day",
+  "window": ["2026-11-30T09:00+04:00", "2026-12-01T13:00+04:00"],
+  "roster": {
+    "Lead": {"timezone": "Asia/Dubai", "working_hours": ["09:00", "13:00"]},
+    "Amal": {"timezone": "Asia/Dubai", "working_hours": ["09:00", "13:00"]},
+    "Sam": {"timezone": "Asia/Dubai", "working_hours": ["09:00", "13:00"]}
+  },
+  "calendars": {
+    "Lead": {
+      "busy_coverage": [["2026-11-30T09:00+04:00", "2026-12-01T13:00+04:00"]],
+      "events": [
+        {
+          "host_id": "amal-check-in", "id": "lead-copy-a", "uid": "shared-a@example.org",
+          "title": "1:1 with Amal", "role": "one_on_one", "organizer": "Lead",
+          "attendees": ["Lead", "Amal"], "attendees_complete": true, "duration_minutes": 30,
+          "start": "2026-12-01T10:00+04:00",
+          "alternatives": ["2026-12-01T06:00Z", "2026-11-30T10:00+04:00"]
+        },
+        {
+          "host_id": "sam-check-in", "id": "lead-copy-s", "uid": "shared-s@example.org",
+          "title": "1:1 with Sam", "role": "one_on_one", "organizer": "Lead",
+          "attendees": ["Lead", "Sam"], "attendees_complete": true, "duration_minutes": 30,
+          "start": "2026-12-01T10:30+04:00", "alternatives": ["2026-11-30T10:30+04:00"]
+        },
+        {"id": "mon-review", "attendees": ["Lead"], "start": "2026-11-30T11:00+04:00", "duration_minutes": 60},
+        {"id": "tue-triage", "attendees": ["Lead"], "start": "2026-12-01T09:30+04:00", "duration_minutes": 30},
+        {"id": "tue-review", "attendees": ["Lead"], "start": "2026-12-01T11:30+04:00", "duration_minutes": 30}
+      ]
+    },
+    "Amal": {
+      "busy_coverage": [["2026-11-30T09:00+04:00", "2026-12-01T13:00+04:00"]],
+      "events": [{"id": "amal-copy", "uid": "shared-a@example.org", "title": "Busy",
+                  "start": "2026-12-01T10:00+04:00", "duration_minutes": 30}]
+    },
+    "Sam": {
+      "busy_coverage": [["2026-11-30T09:00+04:00", "2026-12-01T13:00+04:00"]],
+      "events": [{"id": "sam-copy", "uid": "shared-s@example.org", "title": "Busy",
+                  "start": "2026-12-01T10:30+04:00", "duration_minutes": 30}]
+    }
+  },
+  "requests": [],
+  "max_moves": 2,
+  "portfolio": {
+    "timezone": "Asia/Dubai",
+    "focus_people": ["Lead"],
+    "movable_rituals": ["amal-check-in", "sam-check-in"],
+    "cluster": {"events": ["amal-check-in", "sam-check-in"]},
+    "week_template": [{"role": "one_on_one", "weekdays": [0], "mode": "soft"}]
+  }
+}

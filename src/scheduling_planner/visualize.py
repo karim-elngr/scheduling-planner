@@ -1,11 +1,12 @@
 """Build an offline calendar review and an export pack from saved solver output."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from importlib.resources import files
 import json
 from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .brief import brief
 from .domain import effective_snapshot, iso, timestamp_minute
@@ -73,7 +74,18 @@ def _count(number, word):
     return f"{number} {word}" if number == 1 else f"{number} {word}s"
 
 
-def _portfolio_option(plan, label, key, requests, events):
+def _maker_message(target, zone):
+    who = target["person"]
+    duration = _duration(target["duration_minutes"])
+    if target["status"] == "met":
+        return f"{who} has an uninterrupted {duration} block on {_time_range(target['witness'], zone)}."
+    goal = f"a {duration} maker block for {who}"
+    if target["status"] == "infeasible":
+        return f"No schedule meets all requirements including {goal} at this move budget."
+    return f"The search ended without establishing whether a schedule can provide {goal} at this move budget."
+
+
+def _portfolio_option(plan, label, key, requests, events, zone, objective):
     placements = [_event(p["id"], requests.get(p["id"], {}), p["start"], p["end"], p["attendees"])
                   for p in plan["placements"]]
     moves = [_move(m["id"], events.get(m["id"], {}), m["from"], m["to"], m["end"], m["attendees"])
@@ -88,16 +100,26 @@ def _portfolio_option(plan, label, key, requests, events):
     if "focus_minutes" in metrics:
         focus = f"Longest daily focus blocks total {_duration(metrics['focus_minutes'])}"
         facts.append(focus)
+    impact = None if metrics.get("cluster_days") else focus
+    if plan.get("maker_target"):
+        impact = _maker_message(plan["maker_target"], zone)
+        facts.append(impact)
+    if objective:
+        notes.append(objective)
+    if tradeoff := plan.get("tradeoff"):
+        impact = tradeoff["summary"]
+        facts.append(impact)
+        notes.append(tradeoff["details"])
     status = plan["status"].lower()
     budget = plan.get("budget", 0)
     scope = f"with up to {_count(budget, 'move')}"
     evidence = f"Optimal portfolio {scope}" if status == "optimal" else f"Feasible portfolio {scope}"
     return {"id": key, "label": label, "placements": placements, "moves": moves, "facts": facts,
-            "impact": None if metrics.get("cluster_days") else focus,
+            "impact": impact,
             "proofStatus": status, "availability": "feasible", "evidence": evidence, "notes": notes}
 
 
-def _portfolio_choices(report, source, events):
+def _portfolio_choices(report, source, events, zone):
     requests = {p["id"]: p for p in source.get("requests", [])}
     options = []
     schedule_ids = {}
@@ -111,9 +133,10 @@ def _portfolio_choices(report, source, events):
                             for p in plan["placements"])
         moves = sorted((m["id"], m["from"], m["to"], m["end"], tuple(sorted(m["attendees"])))
                        for m in plan["moves"])
-        identity = (tuple(placements), tuple(moves))
+        witness = (plan.get("maker_target") or {}).get("witness") or {}
+        identity = (tuple(placements), tuple(moves), witness.get("start"), witness.get("end"))
         if identity not in schedule_ids:
-            options.append(_portfolio_option(plan, label, key, requests, events))
+            options.append(_portfolio_option(plan, label, key, requests, events, zone, report.get("objective_summary")))
             schedule_ids[identity] = key
         return schedule_ids[identity]
 
@@ -125,13 +148,16 @@ def _portfolio_choices(report, source, events):
         if days > 0:
             impact = f"{_count(days, 'day')} saved against scatter ({basis})"
             options[0]["facts"].append(impact)
-            options[0]["impact"] = impact
+            if not report.get("tradeoff") and not report.get("maker_target"):
+                options[0]["impact"] = impact
         elif days == 0:
             options[0]["notes"].append(f"The packed and spread-out schedules use the same number of days ({basis}).")
         else:
             options[0]["notes"].append(f"The spread-out alternative uses {_count(abs(days), 'day')} fewer ({basis}).")
     headers = ["Move budget", "Solver status", "Focus time", "Focus gain", "Free blocks", "Cluster days"]
     comparison = []
+    if report.get("maker_target"):
+        headers.append("Maker target")
     for stage in report.get("stages", []):
         budget = stage["budget"]
         metrics = stage.get("metrics") or {}
@@ -143,9 +169,11 @@ def _portfolio_choices(report, source, events):
             sign = "−" if gain < 0 else "+"
             gain = f"{sign}{_duration(gain)} vs {_count(stage['previous_budget'], 'move')} ({proof})"
         focus = metrics.get("focus_minutes")
-        comparison.append({"option": key, "cells": [budget, stage["status"].lower(),
-                           _duration(focus) if focus is not None else None, gain, metrics.get("free_blocks"),
-                           metrics.get("cluster_days")]})
+        cells = [budget, stage["status"].lower(), _duration(focus) if focus is not None else None,
+                 gain, metrics.get("free_blocks"), metrics.get("cluster_days")]
+        if report.get("maker_target"):
+            cells.append(_maker_message(stage["maker_target"], zone))
+        comparison.append({"option": key, "cells": cells})
     add(scatter, "Spread across days", "scatter")
     return options, primary, headers, comparison
 
@@ -203,8 +231,16 @@ def _calendar(report, snapshot):
     current = [_event(e["id"], e, e["start"], iso(timestamp_minute(e["start"]) + int(e["duration_minutes"])),
                       e["attendees"]) for e in events.values()]
     comparison = []
+    default_zone = "UTC"
+    zone = UTC
     if portfolio:
-        options, primary, headers, comparison = _portfolio_choices(report, source, events)
+        default_zone = source.get("portfolio", {}).get("timezone", report.get("timezone", "UTC"))
+        if default_zone != "UTC":
+            try:
+                zone = ZoneInfo(default_zone)
+            except (ZoneInfoNotFoundError, ValueError, TypeError) as error:
+                raise ValueError(f"unknown portfolio timezone: {default_zone!r}") from error
+        options, primary, headers, comparison = _portfolio_choices(report, source, events, zone)
     else:
         options = _single_options(report, source, events)
         primary = report["primary_id"]
@@ -215,7 +251,6 @@ def _calendar(report, snapshot):
                 gain = f"{gain} min ({'proved' if row['gain_proven'] else 'observed'})"
             comparison.append({"option": row["plan_id"], "cells": [row["cap"], row["status"].replace("_", " "),
                                                                     row["start"], gain]})
-    default_zone = source.get("portfolio", {}).get("timezone", "UTC")
     requests = source.get("requests", []) if portfolio else [source.get("request", {})]
     participants = list(dict.fromkeys(pid for request in requests for pid in request.get("attendees", [])))
     if portfolio and not participants:
@@ -224,8 +259,11 @@ def _calendar(report, snapshot):
     baseline = next((o for o in options if not o["moves"] and o["availability"] != "conditional"), None)
     selected = next((o for o in options if o["id"] == primary), options[0] if options else None)
     headline, subtitle = _introduction(portfolio, options, selected, baseline, participants, requests, report)
+    no_witness = "No schedule was returned."
+    if not selected and report.get("maker_target"):
+        no_witness = subtitle = _maker_message(report["maker_target"], zone)
     for option in options:
-        option["proposal"] = _choice_proposal(option)
+        option["proposal"] = _choice_proposal(option, zone)
     zones = {p["metadata"]["timezone"] for p in source.get("people", {}).values()
              if isinstance(p.get("metadata", {}).get("timezone"), str)}
     if default_zone != "UTC":
@@ -237,6 +275,8 @@ def _calendar(report, snapshot):
             "explainers": _explainers(source),
             "timezones": sorted(zones),
             "fullSnapshot": snapshot is not None}
+    if not options:
+        view["noWitness"] = no_witness
     return view, snapshot
 
 
@@ -266,24 +306,40 @@ def _who(event):
     return ", ".join(people)
 
 
-def _time_range(event):
-    start = datetime.fromisoformat(event["start"])
-    end = datetime.fromisoformat(event["end"])
-    start_text = start.strftime("%a %d %b %Y, %H:%M")
-    end_text = end.strftime("%H:%M" if start.date() == end.date() else "%a %d %b %Y, %H:%M")
-    return f"{start_text}–{end_text} UTC"
+def _interval(start, end, *, include_date=True):
+    # Label both wall times when the offset changes, e.g. 01:45 EDT–01:15 EST.
+    clock = "%H:%M %Z" if start.utcoffset() != end.utcoffset() else "%H:%M"
+    dated = "%a %d %b %Y, " + clock
+    start_text = start.strftime(dated if include_date else clock)
+    end_text = end.strftime(dated if start.date() != end.date() else clock)
+    return f"{start_text}–{end_text}"
 
 
-def _choice_proposal(choice):
+def _time_range(event, zone):
+    start = datetime.fromisoformat(event["start"]).astimezone(UTC)
+    end = datetime.fromisoformat(event["end"]).astimezone(UTC)
+    if str(zone) == "UTC":
+        return f"{_interval(start, end)} UTC"
+    try:
+        local_start, local_end = start.astimezone(zone), end.astimezone(zone)
+    except OverflowError:
+        # An endpoint near year 1 or 9999 can fall outside Python's local date range.
+        return f"{_interval(start, end)} UTC (outside the supported date range in {zone})"
+    dates_differ = (start.date(), end.date()) != (local_start.date(), local_end.date())
+    reference = _interval(start, end, include_date=dates_differ)
+    return f"{_interval(local_start, local_end)} {zone} ({reference} UTC)"
+
+
+def _choice_proposal(choice, zone):
     lines = ["Calendar proposal for review", choice["evidence"], ""]
     for slot in choice["placements"]:
         people = _who(slot)
-        lines.append(f"Schedule {slot['title']} on {_time_range(slot)}"
+        lines.append(f"Schedule {slot['title']} on {_time_range(slot, zone)}"
                      + (f" with {people}." if people else "."))
     for move in choice["moves"]:
         event = move["after"]
         people = _who(event)
-        lines.append(f"Move {event['title']} from {_time_range(move['before'])} to {_time_range(event)}."
+        lines.append(f"Move {event['title']} from {_time_range(move['before'], zone)} to {_time_range(event, zone)}."
                      + (f" Coordinate with {people}." if people else ""))
     if not choice["placements"] and not choice["moves"]:
         lines.append("Keep the current schedule.")
@@ -296,7 +352,7 @@ def _choice_proposal(choice):
 def _proposal(view):
     options = view["options"]
     if not options:
-        return f"Calendar planning result: {view['status']}. No schedule was returned.\n"
+        return f"Calendar planning result: {view['status']}. {view['noWitness']}\n"
     choice = next((p for p in options if p["id"] == view["primary"]), options[0])
     return choice["proposal"]
 

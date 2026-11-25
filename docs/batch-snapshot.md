@@ -33,14 +33,40 @@ Supply a provider occurrence `id`, `start` and `end` or `duration_minutes`. Time
 
 | Fields | Meaning |
 | --- | --- |
+| `host_id` | Optional stable name for the host to use in its portfolio policy, for example `harsh-1on1`. Keep the provider occurrence ID in `id`. |
 | `uid`, `calendar_id`, `etag` | A shared UID unifies copies with different provider event IDs. Set `calendar_id` on the calendar feed. Each source retains its provider reference. |
 | `title`, `organizer`, `squads` | Visible event facts used in displays and week diagnosis. Organizers use roster IDs when known. |
 | `attendees`, `attendees_complete` | Required and optional invitees both occupy their calendars. The feed owner is included. An omitted attendee list, external invitee or an explicitly incomplete roster keeps the occurrence fixed unless all participants are resolved in another view. |
 | `optional_attendees`, `tentative_attendees` | Lists of person IDs. `optional: true` and `status: "tentative"` describe the feed owner's copy. |
 | `priority`, `move_tier`, `ooo` | High priority defaults to the protected move tier. An explicit tier can be ordinary or protected. Out-of-office time always stays fixed. |
-| `alternatives`, `move_windows`, `step_minutes` | Authorized replacement domain, using the usual snapshot fields. A title or low priority alone never authorizes movement. |
+| `alternatives`, `move_windows`, `step_minutes` | Authorized replacement starts or windows. **The original start is implicit.** If it appears in `alternatives`, the batch compiler removes it and adds an ingestion warning. A title or low priority alone never authorizes movement. |
 
 A transparent, canceled or declined copy contributes no busy interval. The host should omit declined individuals from other copies' attendee lists. Matching shared occurrences merge their known attendees and source references. Conflicting times for one identity block all reported intervals and produce an ingestion warning. Distinct private busy slots need distinct occurrence IDs.
+
+## Refer to the same ritual after compilation
+
+Suppose the organizer labels a 1:1 with `host_id: "harsh-1on1"`. Their calendar reader supplies `id: "organizer-instance"` and `uid: "shared-occurrence"`. The coworker’s copy has `id: "guest-instance"` and the same UID. The host can send this policy with the batch:
+
+```json
+{"portfolio": {"movable_rituals": ["harsh-1on1"], "cluster": {"events": ["harsh-1on1"]}}}
+```
+
+The compiler emits one event with ID `shared-occurrence` and writes that ID into both lists. It returns the lookup in `metadata.event_id_map`:
+
+```json
+{
+  "guest-instance": ["shared-occurrence"],
+  "harsh-1on1": ["shared-occurrence"],
+  "organizer-instance": ["shared-occurrence"],
+  "shared-occurrence": ["shared-occurrence"]
+}
+```
+
+Each value lists the compiled occurrence IDs matching a name within this snapshot’s window. The batch accepts host IDs, provider IDs, and compiled occurrence IDs in either event list when the name has exactly one match. If several aliases select the same event, it appears once in the compiled list. An unknown or ambiguous reference reports an error at compilation. To select a particular recurring occurrence, use the stable dated form `host_id@YYYY-MM-DD` or `master_id@YYYY-MM-DD`, where the date is the original occurrence’s local date. For unrelated events sharing an alias, use a unique source ID or assign distinct host IDs. To group an entire series, use its compiled `metadata.series_id` in `cluster.series`.
+
+When adding policy to an already compiled snapshot, copy the desired compiled IDs from the map into `movable_rituals` and `cluster.events`. Apply bindings also use the compiled ID as their key. Obtain the organizer’s actual provider occurrence ID and current revision from the authorized read. The snapshot retains observed provider references in `events[].metadata.sources`.
+
+The incumbent remains eligible even if every supplied alternative equals the original time. Offset-equivalent timestamps count as the same instant. When authoring a solver snapshot directly, omit the incumbent from `alternatives`; duplicate replacement instants are invalid.
 
 ## Expand local recurrences
 

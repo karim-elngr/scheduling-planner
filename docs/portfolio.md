@@ -18,6 +18,7 @@ Inspect the input contract with `schedule-plan --portfolio-schema`. Use `request
 | --- | --- |
 | `timezone` | IANA timezone for the team's cluster window and weekday roles. |
 | `focus_people` | People whose observed free time should count toward the focus objective. |
+| `maker_target` | Require one uninterrupted block for a specific person, with a duration in minutes and an optional dated window. |
 | `movable_rituals` | Existing event IDs eligible to move to one of their supplied alternatives. |
 | `cluster` | New meeting IDs in `requests`, incumbent IDs in `events`, or recurring IDs in `series` (matched against `metadata.series_id`), plus the local `after` / `before` times of the desired block. |
 | `week_template` | Rules matching request `role` or event `metadata.role`, with `weekdays` (Monday = 0), and `mode` of `hard` or `soft`. |
@@ -39,10 +40,36 @@ The solver optimizes the following metrics in order. It holds each optimum fixed
 
 For the scatter comparison, the solver maximizes distinct cluster dates under the same move budget and preceding preferences, then optimizes focus on that spread-out schedule. The report includes both witnesses, days saved and the signed difference in focus minutes. A proved comparison requires both optima. Stage gains compare each feasible move budget with the previous feasible budget. The entire command shares one time limit. A `FEASIBLE` result gives a witness whose full ranking is unproved, and `UNKNOWN` means the solver found no witness in time. `INFEASIBLE` applies to verified evidence in the supplied domains. With `--proof-lite`, search stops at the first witness for each requested comparison.
 
+## Test a maker block against a preferred ritual day
+
+The [ritual-day example](../examples/ritual-day-batch.json) has two existing Tuesday 1:1s, a soft preference for Monday, and observed calendars for all three people. Compile it and compare the move budgets.
+
+```sh
+schedule-plan batch-snapshot examples/ritual-day-batch.json > week.json
+schedule-plan portfolio week.json --compare-moves --brief > decision.json
+schedule-plan export-pack decision.json --snapshot week.json --output ritual-proposal
+```
+
+The zero-move schedule leaves the lead a 120-minute block on Monday. The two-move schedule puts both 1:1s on their preferred day. Monday’s longest block then lasts 60 minutes, while Tuesday’s grows from 60 to 90 minutes. The sum falls from 180 to 150. The brief includes the governing policy, the signed difference from the comparison budget and whether both schedules were proved optimal. Its placements and moves can also be visualized or exported.
+
+To ask whether the lead can actually get two uninterrupted hours **on Tuesday**, add this field under `portfolio` and solve again.
+
+```json
+"maker_target": {
+  "person": "Lead",
+  "duration_minutes": 120,
+  "window": ["2026-12-01T09:00+04:00", "2026-12-01T13:00+04:00"]
+}
+```
+
+This is a hard requirement for every tested budget. Each `maker_target` in the result records `met` with a concrete start and end, `infeasible` when CP-SAT rules out a schedule meeting all the hard requirements in the supplied evidence, or `unknown` if search ends without a conclusion. For this fixture Tuesday is infeasible at budgets 0, 1 and 2. Changing the window to Monday preserves the 09:00–11:00 block at every budget. A move cap authorizes up to that many moves.
+
+The witness must fit inside one continuous interval of working eligibility and explicit busy coverage, including on legacy inputs. It can cross midnight if coverage and eligibility continue. Meeting occupancy breaks a block. Rest allowances constrain placement between meetings. Omitting the target window lets the solver use the person’s covered horizon. The target can name someone outside `focus_people`. It reserves time in the model and does not create a calendar event.
+
 ## Diagnose, solve and discuss
 
 See the [Calendar OS guide](calendar-os.md) for the scoring and template rules. Run `schedule-plan calendar-os snapshot.json` to inspect observed load by person and weekday, recurring series due for review, and possible invite changes. Review the suggested day roles before copying them to `portfolio.week_template` and running the solver. Hosts can use the profiles under [examples/profiles](../examples/profiles) and the [skill workflow](../.agents/skills/plan-meetings/SKILL.md).
 
-Run `schedule-plan visualize decision.json --snapshot snapshot.json --output plan.html` to render a decision for review, or use `export-pack` to include the snapshot and proposal text. The timeline uses the portfolio timezone initially. Choose a different zone in the header, switch between Current and Proposed, or use Compare to inspect both at once. Identical placements appear once among the choices. Each tested move budget retains its own result under **Compare move budgets**. Open **Review proposal** to save the selected schedule as text.
+Run `schedule-plan visualize decision.json --snapshot snapshot.json --output plan.html` to render a decision for review, or use `export-pack` to include the snapshot and proposal text. The timeline uses the portfolio timezone initially. Choose a different zone in the header, switch between Current and Proposed, or use Compare to inspect both at once. Identical placements appear once among the choices. Each tested move budget retains its own result under **Compare move budgets**. Open **Review proposal** to save the selected schedule as text. The saved proposal and the export pack’s `proposal.txt` use `portfolio.timezone` for invitations and moves, with UTC in parentheses. Changing the timeline display zone leaves the organizer’s proposal in the team timezone.
 
 Run [prepare-apply](apply.md) only for a selected proposal. The organizer reviews the exact changes before authorizing a write.

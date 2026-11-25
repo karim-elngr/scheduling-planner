@@ -33,6 +33,21 @@ schedule-plan prepare-apply brief.json --snapshot snapshot.json --bindings bindi
 
 Show the organizer the operations in `review.json`, including the organizer, people, times, optional guests, occurrence IDs and notification setting. The manifest includes a SHA-256 digest of the exact batch. Record the organizer's explicit approval of this digest before passing it to the executor. A digest identifies content. The host is responsible for obtaining consent from the authenticated organizer.
 
+## Rehearse with a read-only calendar
+
+For an organizer's first real-calendar rehearsal, use the host's authorized read-only calendar connection and finish at the local manifest. A schedule that recommends keeping all incumbents and has no new requests has no operations to prepare. Record that outcome as the proposal.
+
+- [ ] Identify the organizer's primary calendar and the dated window. For each proposed move, find its compiled ID in `plan.json` and the matching `events[].metadata.sources` in the snapshot. Resolve the **organizer's occurrence copy** to its Google event ID and ETag, including the original instance date for a recurring meeting. Put the compiled ID in the bindings key. Put the provider event ID and captured ETag in its value.
+- [ ] Read the organizer's current occurrence and compare ownership, original start and duration, guests, optional status and ETag with the captured evidence. With the host's read connection, check destination intervals and rest on each affected calendar, including the organizing calendar. Follow pagination. If ownership, revisions, attendance or availability changed, refresh the evidence and solve again.
+- [ ] Run the local preparation command below for the chosen portfolio. It reads the three JSON files and computes `review.json` without calling Google. The host reads above supply the live checks for this rehearsal.
+
+```sh
+schedule-plan prepare-apply local/plan.json --snapshot local/week.json --bindings local/bindings.json > local/review.json
+```
+
+- [ ] Compare each manifest operation with the selected proposal in the organizer's timezone. Check original and replacement times, titles of new meetings, recipient addresses, optional invitations and `send_updates: "all"`. Verify that `snapshot_sha256` matches the selected report. Record `approval_sha256` as the identifier of the batch reviewed.
+- [ ] End the rehearsal after review. The organizer can request a separate booking and approve the exact digest when ready. A change to the operations requires reviewing the replacement manifest.
+
 ## Book and reconcile
 
 Use an organizer-authorized OAuth token with Google Calendar event read/write access, access to the primary calendar's metadata, and read visibility on the affected calendars. The Google Calendar OAuth scope `https://www.googleapis.com/auth/calendar` covers the adapter's requests within the organizer's permissions. Supply the token through the environment. Keep it outside the manifest and command history. Supply the digest the organizer actually approved.

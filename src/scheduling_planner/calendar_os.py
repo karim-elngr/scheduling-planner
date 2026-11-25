@@ -101,7 +101,8 @@ def _load_and_hygiene(events, roster, people, window):
             else:
                 people[pid]["invited_minutes"] += duration
                 review = _invite_review(event_id, pid, pid in optional, pid in tentative, len(squads) >= 2)
-                reviews.append(review)
+                if review["signals"]:
+                    reviews.append(review)
         if facts.get("series_id"):
             series[nonempty_text(facts["series_id"], "series_id")].append((event_id, facts))
     return occupied, sorted(reviews, key=lambda r: (-r["score"], r["event_id"], r["person"])), series

@@ -163,6 +163,70 @@ class PortfolioTests(unittest.TestCase):
         data["people"]["a"]["busy_coverage"] = [[at(0), at(60)], [at(90), at(120)]]
         self.assertEqual(solve_portfolio(data)["metrics"]["focus_minutes"], 60)
 
+    def test_dated_maker_target_can_require_a_move_despite_soft_weekday(self):
+        tuesday = 1440
+        data = {"max_moves": 1, "requests": [], "people": {"a": person((0, 180), (tuesday, tuesday + 180)),
+                                                            "b": person((tuesday, tuesday + 180))},
+                "events": [event("ritual", tuesday + 60, 30, metadata={"role": "one_on_one"}),
+                           event("someone-else", tuesday, duration=180) | {"attendees": ["b"]}],
+                "portfolio": {"focus_people": ["b"], "timezone": "Asia/Dubai",
+                              "week_template": [{"role": "one_on_one", "weekdays": [1], "mode": "soft"}]}}
+        self.assertEqual(solve_portfolio(data)["moves"], [])
+        window = [at(tuesday), at(tuesday + 120)]
+        data["portfolio"]["maker_target"] = {"person": "a", "duration_minutes": 120, "window": window}
+        report = solve_portfolio(data, compare_moves=True)
+        self.assertEqual(report["timezone"], "Asia/Dubai")
+        baseline, moved = report["stages"]
+        self.assertEqual((baseline["budget"], baseline["status"]), (0, "INFEASIBLE"))
+        self.assertEqual((baseline["maker_target"]["status"], baseline["maker_target"]["witness"]), ("infeasible", None))
+        self.assertEqual((moved["budget"], moved["status"], moved["metrics"]["preference_penalty"]), (1, "OPTIMAL", 1))
+        self.assertEqual(moved["moves"][0]["to"], at(30))
+        self.assertEqual(report["maker_target"], {**data["portfolio"]["maker_target"], "status": "met",
+                                                   "witness": {"start": window[0], "end": window[1]}})
+        self.assertEqual(moved["maker_target"], report["maker_target"])
+        # An actual witness proves existence even when ranking was deliberately stopped early.
+        quick = solve_portfolio(data, proof_lite=True)
+        self.assertEqual((quick["status"], quick["maker_target"]), ("FEASIBLE", report["maker_target"]))
+        expired = solve_portfolio(data, time_limit_seconds=1e-12)
+        self.assertEqual(expired["status"], "UNKNOWN")
+        self.assertEqual((expired["maker_target"]["status"], expired["maker_target"]["witness"]), ("unknown", None))
+
+    def test_maker_target_can_cross_midnight_and_cannot_span_coverage_or_work_gaps(self):
+        record = person((600, 720))  # 23:00–01:00 in Dubai
+        data = {"people": {"a": {**record, "metadata": {"timezone": "Asia/Dubai"}}}, "requests": [],
+                "portfolio": {"maker_target": {"person": "a", "duration_minutes": 120}}}
+        self.assertEqual(solve_portfolio(data)["maker_target"]["witness"], {"start": at(600), "end": at(720)})
+        data["portfolio"]["maker_target"]["window"] = [at(660), at(780)]
+        self.assertEqual(solve_portfolio(data)["maker_target"]["status"], "infeasible")
+        del data["portfolio"]["maker_target"]["window"]
+        data["people"]["a"] = person((0, 120))
+        target = solve_portfolio(data)["maker_target"]
+        self.assertEqual(target["witness"], {"start": at(0), "end": at(120)})
+        data["people"]["a"]["busy_coverage"] = [[at(0), at(50)], [at(51), at(120)]]
+        self.assertEqual(solve_portfolio(data)["maker_target"]["status"], "infeasible")
+        del data["people"]["a"]["busy_coverage"]
+        data["evidence_policy"] = "legacy"
+        self.assertEqual(solve_portfolio(data)["maker_target"]["status"], "infeasible")
+        data["people"]["a"] = person((0, 60), (61, 120))
+        data["people"]["a"]["busy_coverage"] = [[at(0), at(120)]]
+        self.assertEqual(solve_portfolio(data)["maker_target"]["status"], "infeasible")
+
+    def test_maker_target_obstructs_only_the_chosen_delegate(self):
+        data = {"people": {p: person((0, 120)) for p in ("a", "b")}, "requests": [
+            request("forum", [30], attendees=(), representatives=["a", "b"])],
+            "portfolio": {"maker_target": {"person": "a", "duration_minutes": 120}}}
+        result = solve_portfolio(data)
+        self.assertEqual(result["placements"][0]["representative"], "b")
+        self.assertEqual(result["maker_target"]["witness"], {"start": at(0), "end": at(120)})
+
+    def test_maker_target_validates_duration_person_and_dated_window(self):
+        base = {"person": "a", "duration_minutes": 60}
+        data = {"people": {"a": person((0, 120))}, "requests": []}
+        for fields in [{"duration_minutes": 0}, {"duration_minutes": True}, {"person": "unknown"},
+                       {"window": [at(120), at(60)]}, {"window": [at(0)]}, {"window": ["Monday", "Tuesday"]}]:
+            with self.subTest(fields=fields), self.assertRaisesRegex(ValueError, "maker_target"):
+                solve_portfolio({**data, "portfolio": {"maker_target": {**base, **fields}}})
+
     def test_timezone_year_limits_are_validation_errors(self):
         for lo, hi, zone in [("9999-12-31T21:00Z", "9999-12-31T22:00Z", "Asia/Dubai"),
                             ("0001-01-01T00:00Z", "0001-01-01T01:00Z", "America/New_York")]:
