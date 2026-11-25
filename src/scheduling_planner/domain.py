@@ -2,6 +2,8 @@
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+import json
 from operator import itemgetter
 import re
 
@@ -88,6 +90,45 @@ def merge(windows):
         else:
             merged.append((start, end))
     return tuple(merged)
+
+
+def intersect_windows(left, right):
+    """Intersect two lists of sorted, disjoint time windows."""
+    a = b = 0
+    while a < len(left) and b < len(right):
+        lo, hi = left[a]
+        start, end = right[b]
+        if max(lo, start) < min(hi, end):
+            yield max(lo, start), min(hi, end)
+        if hi <= end:
+            a += 1
+        if end <= hi:
+            b += 1
+
+
+def local_datetime(minute, zone):
+    """Require a UTC grid minute representable in the selected local timezone."""
+    try:
+        return (EPOCH + timedelta(minutes=minute)).astimezone(zone)
+    except OverflowError as error:
+        raise ValueError(f"timestamp exceeds the supported date range in {zone}") from error
+
+
+def local_days(windows, zone):
+    """Split UTC minute windows at local midnights, preserving DST day lengths."""
+    minute = timedelta(minutes=1)
+    for start, end in windows:
+        if start < end:
+            local_datetime(end - 1, zone)
+        while start < end:
+            day = local_datetime(start, zone).date()
+            boundary = end
+            if day != datetime.max.date():
+                midnight = datetime.combine(day + timedelta(days=1), datetime.min.time(), zone)
+                # Round up to the next UTC grid minute for historical offsets.
+                boundary = min(end, -((EPOCH - midnight) // minute))
+            yield day, start, boundary
+            start = boundary
 
 
 def window_pairs(values, label, nonempty=False):
@@ -274,10 +315,33 @@ class Problem:
     evidence_policy: str = "legacy"
 
 
-def parse_snapshot(data: dict) -> Problem:
-    """Normalize calendar data once. All timestamps are UTC epoch minutes."""
-    fields(data, {"schema_version", "$schema", "request", "people", "events", "facts", "constraints", "objective", "decisions",
-                  "snapshot_id", "max_moves", "max_states", "evidence_policy"}, "input")
+def snapshot_digest(data):
+    """Fingerprint the exact JSON evidence and policy used for a solve."""
+    try:
+        serialized = json.dumps(data, ensure_ascii=False, sort_keys=True,
+                                separators=(",", ":"), allow_nan=False).encode("utf-8")
+    except (ValueError, TypeError) as error:
+        raise ValueError("snapshot must be JSON data with finite numbers and UTF-8 text") from error
+    return sha256(serialized).hexdigest()
+
+
+def effective_snapshot(report, snapshot):
+    """Verify the supplied evidence against the solve, including a profile-provided objective."""
+    if snapshot is None:
+        return None
+    scope = report.get("result", report).get("scope", {})
+    digest = report.get("snapshot_sha256") or scope.get("snapshot_sha256")
+    if snapshot_digest(snapshot) == digest:
+        return snapshot
+    if "objective" not in snapshot and "objective" in scope:
+        effective = {**snapshot, "objective": scope["objective"]}
+        if snapshot_digest(effective) == digest:
+            return effective
+    raise ValueError("the supplied snapshot differs from the solver report's snapshot_sha256")
+
+
+def read_calendar(data):
+    """Read the calendar shared by the single-request and portfolio models."""
     version = data.get("schema_version", "1.0")
     if version not in ("1.0", "1.1"):
         raise ValueError("unsupported schema_version; this release supports 1.0 and 1.1")
@@ -302,11 +366,19 @@ def parse_snapshot(data: dict) -> Problem:
             busy_coverage = merge(window_pairs(raw.get("busy_coverage", []), f"{pid}.busy_coverage"))
         people[pid] = Person(available, merge(available + possible), rest, busy_coverage)
     timestamps = {}
-    request = read_meeting(data.get("request"), people, is_request=True, timestamps=timestamps)
     events = [read_meeting(raw, people, timestamps=timestamps, allow_changes=cap > 0)
               for raw in arr(data.get("events", []), "events")]
     require(len({event.id for event in events}) == len(events), "event IDs must be unique")
     events.sort(key=lambda event: event.id)
+    return people, tuple(events), cap, policy
+
+
+def parse_snapshot(data: dict) -> Problem:
+    """Normalize calendar data once. All timestamps are UTC epoch minutes."""
+    fields(data, {"schema_version", "$schema", "request", "people", "events", "facts", "constraints", "objective", "decisions",
+                  "snapshot_id", "max_moves", "max_states", "evidence_policy"}, "input")
+    people, events, cap, policy = read_calendar(data)
+    request = read_meeting(data.get("request"), people, is_request=True)
     notes = ()
     if "max_states" in data:
         if integer_value(data["max_states"]) != 200000:

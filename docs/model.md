@@ -4,7 +4,7 @@ The planner chooses one start for a requested call and one placement for each ex
 
 ## Capture a snapshot
 
-Build the snapshot for a specific request and observation time. Use offset-aware, whole-minute instants. Expand recurring meetings and daylight-saving exceptions in the source time zone before converting them to dated occurrences.
+Build the snapshot for a specific request and observation time. Use offset-aware, whole-minute instants. The [batch snapshot compiler](batch-snapshot.md) expands daily and weekly series and their exceptions in the source timezone. Hosts can also supply dated provider occurrences.
 
 | Input | What the agent supplies |
 |---|---|

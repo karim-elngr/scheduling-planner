@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Build dated snapshots from roster profiles, recurring occurrences and shared calendar evidence.
+- Plan multiple meetings with CP-SAT, compare named ritual move budgets, protect focus time and evaluate cluster packing, weekday roles, delegates and soft preferences.
+- Diagnose calendar load, invite hygiene and series review dates with the Calendar OS workflow.
+- Render offline calendar comparisons and export a proposal with its source snapshot. Prepare and apply reviewed organizer changes through Google Calendar.
+
 - Include observed calendar coverage in the sample so a host can reproduce the comparison directly from the fixture.
 
 - Keep the one-move comparison and its proof when the authorized limit exceeds the number of movable meetings.

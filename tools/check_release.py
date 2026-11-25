@@ -10,6 +10,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 
 def only(directory, pattern):
@@ -42,6 +43,8 @@ def check(directory):
             ".agents/skills/plan-meetings/references/solver-playbook.md",
             ".agents/skills/plan-meetings/evals/scenarios.json",
             "examples/team_heuristics.py", "examples/team_rules.py", "tests/test_advisor.py",
+            "examples/squad-week-batch.json", "docs/batch-snapshot.md", "docs/portfolio.md",
+            "docs/calendar-os.md", "docs/apply.md",
         ]
         for filename in required:
             if not from_source(filename).strip():
@@ -64,7 +67,8 @@ def check(directory):
                 from_source(case["fixture_from_repo_root"])
         for schema_name, examples in [
             ("snapshot-v1", ["sample.json", "examples/release-review.json"]),
-            ("advisor-profile-v1", ["examples/team-profile.json"]),
+            ("advisor-profile-v1", ["examples/team-profile.json", "examples/profiles/steady-state.json",
+                                    "examples/profiles/launch-week.json", "examples/profiles/mixed-timezones.json"]),
         ]:
             name = f"scheduling_planner/schemas/{schema_name}.schema.json"
             raw = wheel.read(name)
@@ -78,6 +82,13 @@ def check(directory):
         demo = "scheduling_planner/data/demo.json"
         input_schema = json.loads(wheel.read("scheduling_planner/schemas/snapshot-v1.schema.json"))
         Draft202012Validator(input_schema).validate(json.loads(wheel.read(demo)))
+        portfolio_schema = json.loads(wheel.read("scheduling_planner/schemas/portfolio-v1.schema.json"))
+        Draft202012Validator.check_schema(portfolio_schema)
+        registry = Registry().with_resource("snapshot-v1.schema.json", Resource.from_contents(input_schema))
+        portfolio_validator = Draft202012Validator(portfolio_schema, registry=registry)
+        for case in ("cluster-one-on-ones", "recover-maker-block"):
+            fixture = f".agents/skills/plan-meetings/evals/{case}.json"
+            portfolio_validator.validate(json.loads(from_source(fixture)))
         dist_info = next(n.rsplit("/", 1)[0] for n in wheel.namelist() if n.endswith(".dist-info/METADATA"))
         meta = message_from_bytes(wheel.read(f"{dist_info}/METADATA"))
         sdist_meta = message_from_bytes(from_source("PKG-INFO"))

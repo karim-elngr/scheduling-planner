@@ -22,6 +22,26 @@ python3 run.py --browser
 uv run --locked schedule-plan snapshot.json --brief --ranking earliest
 ```
 
+## Plan a squad week
+
+The synthetic squad example places two 1:1s for a Dubai-based lead and colleagues in Dubai and Riyadh. Each calendar declares its own working hours, weekend and observed coverage. From the checkout, run these commands after installing the project, or prefix each `schedule-plan` command with `uv run --locked`.
+
+```sh
+schedule-plan batch-snapshot examples/squad-week-batch.json > snapshot.json
+schedule-plan calendar-os snapshot.json
+schedule-plan portfolio snapshot.json --compare-moves > decision.json
+schedule-plan export-pack decision.json --snapshot snapshot.json --output squad-proposal
+```
+
+Open `squad-proposal/plan.html` to compare the current week with the proposal. The pack also contains the source snapshot and a plain-language proposal. Anyone receiving it can read that calendar evidence, including titles and attendee names. For a standalone view of an existing single-meeting brief, run:
+
+```sh
+schedule-plan --demo > brief.json
+schedule-plan visualize brief.json --output proposal.html
+```
+
+See the [portfolio and calendar input guide](docs/portfolio.md) for data formats and proof scope, and the [organizer apply workflow](docs/apply.md) to prepare and approve calendar changes.
+
 ## Give the skill to an agent
 
 1. Open the **whole checkout** in an agent host that discovers repository skills. The entry point is [plan-meetings](.agents/skills/plan-meetings/SKILL.md). In hosts with a skill picker, select it or invoke `$plan-meetings`. In another host, supply that file as the agent's instructions and make the checkout or installed CLI available to its execution tool.

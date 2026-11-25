@@ -12,7 +12,7 @@ import webbrowser
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / ".planner-runtime"
-INSPECTION = {"-h", "--help", "--version", "--schema", "--profile-schema",
+INSPECTION = {"-h", "--help", "--version", "--schema", "--profile-schema", "--portfolio-schema",
               "--result-schema", "--advice-schema", "--brief-schema", "--show-profile"}
 PROBE = ("import sys; print(sys.executable); sys.exit(0 if sys.implementation.name == 'cpython' "
          "and (3, 11) <= sys.version_info[:2] < (3, 15) else 1)")

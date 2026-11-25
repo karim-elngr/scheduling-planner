@@ -24,4 +24,6 @@ schedule-plan --schema
 schedule-plan snapshot.json --brief --compare-moves
 ```
 
-Parse stdout as JSON. Keep the evidence mode, move cap and proof status with each option when presenting it to the organizer. Scheduling Planner is distributed under the Apache License 2.0.
+For a squad week, build a snapshot with `schedule-plan batch-snapshot`, diagnose the week with `schedule-plan calendar-os`, and solve all requests together with `schedule-plan portfolio`. The `visualize` and `export-pack` commands also work with saved single-meeting briefs and advice. See the repository's [squad week walkthrough](https://github.com/karim-elngr/scheduling-planner#plan-a-squad-week).
+
+Parse solver stdout as JSON. Keep the evidence mode, move cap and proof status with each option when presenting it to the organizer. Scheduling Planner is distributed under the Apache License 2.0.

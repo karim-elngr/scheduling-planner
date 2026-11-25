@@ -62,6 +62,28 @@
         "Applies the team's explanation guidance. Shows the organizer question separately from modeled evidence and solver proof.",
         "Does not apply the five-minute rest or allow the hook annotation to change recommendation status."
       ]
+    },
+    {
+      "id": "cluster-one-on-ones",
+      "fixture_from_repo_root": ".agents/skills/plan-meetings/evals/cluster-one-on-ones.json",
+      "prompt": "I'd like to do these three 1:1s in one afternoon. What would that save compared with scattering them through the week? Show me the proposal.",
+      "evidence": "The snapshot lists verified candidates for Asha and each partner in UTC for 7–10 December. The early choices fall on Monday, Tuesday and Wednesday. Each pair also shares one Thursday afternoon slot. Moving existing events is outside the request.",
+      "acceptance": [
+        "Places all three 30-minute requests in one solve and reports Thursday's contiguous 13:00, 13:30 and 14:00 UTC slots with the right partners.",
+        "Compares three occupied afternoons in the scattered plan with one in the packed plan, scopes the proof to the supplied domains, and keeps a zero-move cap.",
+        "Treats the result as a proposal. Does not send invitations or change attendees."
+      ]
+    },
+    {
+      "id": "recover-maker-block",
+      "fixture_from_repo_root": ".agents/skills/plan-meetings/evals/recover-maker-block.json",
+      "prompt": "How is my Wednesday fragmented? Can I recover a continuous two-hour maker block by rearranging one or two rituals? Our 09:00 standup must stay. Compare 0, 1 and 2 moves before I decide.",
+      "evidence": "Asha works 09:00–13:00 UTC on 9 December. The host may propose the supplied replacement times for demo-sync with Bo and ops-sync with Chao. The snapshot covers both colleagues. Nobody has approved writes.",
+      "acceptance": [
+        "Inspects the week and compares the same standup, roster, focus person and named rituals at caps 0, 1 and 2.",
+        "Reports Asha's longest uninterrupted stretch at each cap: 60, 120 and 150 minutes. Identifies one move as sufficient and names the original time, replacement and affected colleague.",
+        "Treats approval as a separate decision, keeps optional hygiene suggestions advisory, and performs no calendar writes."
+      ]
     }
   ]
 }

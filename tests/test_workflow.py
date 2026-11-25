@@ -19,8 +19,8 @@ class WorkflowTests(unittest.TestCase):
     def setUpClass(cls):
         cls.traces = synthetic_cases()
 
-    def test_all_six_scenarios(self):
-        self.assertEqual(len(validate(self.traces)), 6)
+    def test_all_eight_scenarios(self):
+        self.assertEqual(len(validate(self.traces)), 8)
 
     def test_trace_rejects_wrong_identity_cutoff_permission_proof_and_cap(self):
         changes = [
@@ -29,6 +29,11 @@ class WorkflowTests(unittest.TestCase):
             ("comparison-and-outsider", 0, {"max_moves": 3}),
             ("conflicting-cutoff-and-untrusted-request", 0, {"deadlines": [instant("12:00")]}),
             ("trusted-team-profile-and-hard-rule", 0, {"action": "invite"}),
+            ("cluster-one-on-ones", 1, {"days_saved": 3}),
+            ("recover-maker-block", 1, {"movable_rituals": ["unrelated"]}),
+            ("recover-maker-block", 2, {"budget": 2}),
+            ("recover-maker-block", 2, {"free_interval": [instant("09:00"), instant("10:00")]}),
+            ("recover-maker-block", 2, {"action": "apply"}),
             ("limited-proof-and-scope", 0, {"claims": [
                 {"max_moves": 0, "ranking": "earliest", "status": "infeasible_in_scope", "earliest_proven": False},
                 {"max_moves": 1, "ranking": "earliest", "status": "best_found", "earliest_proven": True}]}),
@@ -99,6 +104,21 @@ class WorkflowTests(unittest.TestCase):
         out = run_workflow(data, read_person=reader)
         self.assertIsNone(out["recommendation"])
         self.assertEqual(out["trace"][-1]["reason"], "conflicting_occurrence")
+
+    def test_supplied_duplicate_occurrences_merge_or_clarify_before_reading(self):
+        data = request(["A"], ["10:00", "12:00"], 0)
+        data["people"]["A"] = calendar()
+        event = {"id": "shared", "attendees": ["A"], "duration_minutes": 30, "start": instant("10:00")}
+        duplicate = dict(event, start="2026-12-02T14:00+04:00")
+        data["events"] = [event, duplicate]
+        result = run_workflow(data)
+        self.assertEqual(result["recommendation"]["options"][0]["start"], instant("12:00"))
+        self.assertEqual(len(data["events"]), 2)
+        duplicate["duration_minutes"] = 60
+        conflict = run_workflow(data)
+        self.assertEqual(conflict["trace"], [
+            {"action": "clarify", "reason": "conflicting_occurrence", "subject": "shared"}])
+        self.assertIsNone(conflict["recommendation"])
 
     def test_reader_cannot_substitute_a_different_person(self):
         with self.assertRaisesRegex(ValueError, "different person"):

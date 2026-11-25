@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Joint meeting portfolio snapshot v1",
+  "type": "object",
+  "required": ["people", "requests"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+    "schema_version": {"enum": ["1.0", "1.1"], "default": "1.1"},
+    "evidence_policy": {"$ref": "snapshot-v1.schema.json#/properties/evidence_policy"},
+    "snapshot_id": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+    "people": {"$ref": "snapshot-v1.schema.json#/properties/people"},
+    "events": {"$ref": "snapshot-v1.schema.json#/properties/events"},
+    "facts": {"type": "object"},
+    "metadata": {"type": "object"},
+    "max_moves": {"$ref": "snapshot-v1.schema.json#/$defs/nonnegative"},
+    "requests": {"type": "array", "items": {"$ref": "#/$defs/request"}},
+    "portfolio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {"type": "object"},
+        "timezone": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+        "focus_people": {"$ref": "#/$defs/ids"},
+        "movable_rituals": {"$ref": "#/$defs/ids"},
+        "cluster": {
+          "type": "object",
+          "anyOf": [
+            {"required": ["requests"], "properties": {"requests": {"minItems": 1}}},
+            {"required": ["events"], "properties": {"events": {"minItems": 1}}},
+            {"required": ["series"], "properties": {"series": {"minItems": 1}}}
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "requests": {"$ref": "#/$defs/ids"},
+            "events": {"$ref": "#/$defs/ids"},
+            "series": {"$ref": "#/$defs/ids"},
+            "after": {"$ref": "#/$defs/clock"},
+            "before": {"$ref": "#/$defs/clock"},
+            "metadata": {"type": "object"}
+          }
+        },
+        "week_template": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "weekdays"],
+            "additionalProperties": false,
+            "properties": {
+              "role": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+              "mode": {"enum": ["hard", "soft"]},
+              "weekdays": {
+                "type": "array", "minItems": 1,
+                "items": {"type": "integer", "minimum": 0, "maximum": 6}
+              },
+              "metadata": {"type": "object"}
+            }
+          }
+        },
+        "preferences": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "not_before": {"$ref": "#/$defs/clock"},
+              "lunch": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/clock"}},
+              "max_meetings_per_day": {"$ref": "snapshot-v1.schema.json#/$defs/nonnegative"},
+              "metadata": {"type": "object"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "clock": {"type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$"},
+    "ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "snapshot-v1.schema.json#/$defs/id"}
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attendees", "duration_minutes"],
+      "oneOf": [{"required": ["starts"]}, {"required": ["windows"]}],
+      "anyOf": [{"properties": {"attendees": {"minItems": 1}}}, {"required": ["representatives"]}],
+      "properties": {
+        "id": {"$ref": "snapshot-v1.schema.json#/$defs/id", "not": {"const": "$request"}},
+        "role": {"$ref": "snapshot-v1.schema.json#/$defs/id"},
+        "attendees": {"$ref": "#/$defs/ids"},
+        "representatives": {"$ref": "#/$defs/ids", "minItems": 1},
+        "duration_minutes": {"$ref": "snapshot-v1.schema.json#/$defs/duration"},
+        "step_minutes": {"$ref": "snapshot-v1.schema.json#/$defs/duration"},
+        "starts": {"$ref": "snapshot-v1.schema.json#/$defs/request/properties/starts"},
+        "windows": {"$ref": "snapshot-v1.schema.json#/$defs/request/properties/windows"},
+        "metadata": {"type": "object"}
+      }
+    }
+  }
+}

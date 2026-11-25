@@ -1,4 +1,4 @@
-"""Run six portable workflow cases, or evaluate traces from a host adapter."""
+"""Run the portable workflow cases, or evaluate traces from a host adapter."""
 
 import argparse
 import json
@@ -21,6 +21,41 @@ def request(names, starts, cap):
     return {"schema_version": "1.1", "people": {}, "max_moves": cap,
             "request": {"attendees": names, "duration_minutes": 30,
                         "starts": [instant(hour) for hour in starts]}}
+
+
+def portfolio_case(name, *, diagnose=False):
+    """Run the dated fixture through the same public entry points available to a host."""
+    from scheduling_planner.calendar_os import diagnose_week
+    from scheduling_planner.domain import gaps, iso, merge, timestamp_minute, window_pairs
+    from scheduling_planner.portfolio import solve_portfolio
+
+    data = json.loads((SCENARIOS.parent / f"{name}.json").read_text(encoding="utf-8"))
+    trace = []
+    if diagnose:
+        diagnosis = diagnose_week(data)
+        trace.append({"action": "diagnose", "people": sorted(diagnosis["people"]),
+                      "days": diagnosis["people"]["Asha"]["days"]})
+    trace.append({"action": "solve", "requests": [item["id"] for item in data["requests"]],
+                  "max_moves": data["max_moves"], "compare_moves": diagnose,
+                  "movable_rituals": data["portfolio"].get("movable_rituals", [])})
+    recommendation = solve_portfolio(data, compare_moves=diagnose)
+    if diagnose:
+        stages = recommendation["stages"]
+        sufficient = next(stage for stage in stages if stage["metrics"]["focus_minutes"] >= 120)
+        # This fixture supplies one covered work window and zero rest for Asha.
+        [work] = window_pairs(data["people"]["Asha"]["available"], "workday")
+        replacements = {move["id"]: move["to"] for move in sufficient["moves"]}
+        occupied = []
+        for event in data["events"]:
+            if "Asha" in event["attendees"]:
+                start = timestamp_minute(replacements.get(event["id"], event["start"]))
+                occupied.append((start, start + event["duration_minutes"]))
+        block = max(gaps(merge(occupied), *work), key=lambda gap: gap[1] - gap[0])
+        trace.append({"action": "present", "focus_person": "Asha", "budget": sufficient["budget"],
+                      "moves": sufficient["moves"], "free_interval": [iso(t) for t in block]})
+    else:
+        trace.append({"action": "present", "days_saved": recommendation["scatter_comparison"]["days_saved"]})
+    return {"trace": trace, "recommendation": recommendation}
 
 
 def synthetic_cases():
@@ -70,6 +105,8 @@ def synthetic_cases():
 
     cases["trusted-team-profile-and-hard-rule"] = run_workflow(
         data, profile=team, heuristics={"consent": consent}, display_zones=["UTC", "Asia/Dubai"])
+    cases["cluster-one-on-ones"] = portfolio_case("cluster-one-on-ones")
+    cases["recover-maker-block"] = portfolio_case("recover-maker-block", diagnose=True)
     return cases
 
 
@@ -81,10 +118,10 @@ def require(condition, message):
 def validate(cases):
     """Check observable behavior in the reference or a host-supplied transcript."""
     ids = {case["id"] for case in json.loads(SCENARIOS.read_text(encoding="utf-8"))["cases"]}
-    require(set(cases) == ids, "supply exactly the six documented cases")
+    require(set(cases) == ids, "supply exactly the documented cases")
     for name, case in cases.items():
         actions = [step["action"] for step in case["trace"]]
-        require(set(actions) <= {"read", "clarify", "solve", "present", "stop"},
+        require(set(actions) <= {"read", "clarify", "solve", "present", "stop", "diagnose"},
                 f"{name}: unexpected action (proposal-only task)")
         if name == "no-access-and-ambiguous-person":
             require(actions == ["clarify"], f"{name}: clarify before any read or solve")
@@ -145,6 +182,45 @@ def validate(cases):
             require(not rec["questions"] and rec["status"] == "verified_option"
                     and any(n["kind"] == "question" and n["heuristic"] == "consent" for n in rec["annotations"]),
                     f"{name}: consent guidance confused with modeled evidence")
+        elif name == "cluster-one-on-ones":
+            require(actions == ["solve", "present"], f"{name}: unexpected action")
+            solve, present = case["trace"]
+            rec = case["recommendation"]
+            pairs = {"Bo": "13:00", "Chao": "13:30", "Devi": "14:00"}
+            ids = {f"one-on-one-{peer.lower()}" for peer in pairs}
+            require(set(solve["requests"]) == ids and solve["max_moves"] == 0 and rec["moves"] == [],
+                    f"{name}: wrong request set or move cap")
+            placements = {(item["id"], frozenset(item["attendees"]), item["start"]) for item in rec["placements"]}
+            require(placements == {(f"one-on-one-{peer.lower()}", frozenset(["Asha", peer]), f"2026-12-10T{t}Z")
+                                   for peer, t in pairs.items()}, f"{name}: wrong afternoon or partner")
+            comparison = rec["scatter_comparison"]
+            require(comparison["proved"] and comparison["days_saved"] == present["days_saved"] == 2,
+                    f"{name}: missing scoped comparison with the three-day plan")
+        elif name == "recover-maker-block":
+            require(actions == ["diagnose", "solve", "present"], f"{name}: unexpected action")
+            diagnosis, solve, present = case["trace"]
+            require(set(diagnosis["people"]) == {"Asha", "Bo", "Chao"} and set(diagnosis["days"]) == {"2026-12-09"}
+                    and diagnosis["days"]["2026-12-09"]["longest_free_minutes"] == 60,
+                    f"{name}: wrong roster or dates")
+            require(solve["requests"] == [] and solve["max_moves"] == 2 and solve["compare_moves"]
+                    and set(solve["movable_rituals"]) == {"demo-sync", "ops-sync"},
+                    f"{name}: changed the required standup or permission to move rituals")
+            stages = case["recommendation"]["stages"]
+            require([(s["budget"], s["metrics"]["focus_minutes"]) for s in stages] == [(0, 60), (1, 120), (2, 150)],
+                    f"{name}: wrong continuous maker time or missing baseline")
+            one_move = stages[1]["moves"]
+            require(present["focus_person"] == "Asha" and present["budget"] == 1
+                    and len(one_move) == 1 and present["moves"] == one_move, f"{name}: one change suffices")
+            move = one_move[0]
+            move_details = (move["id"], move["from"], move["to"], frozenset(move["attendees"]))
+            intervals = {
+                ("demo-sync", "2026-12-09T10:30Z", "2026-12-09T09:30Z", frozenset(["Bo", "Asha"])):
+                    ["2026-12-09T10:00Z", "2026-12-09T12:00Z"],
+                ("ops-sync", "2026-12-09T12:00Z", "2026-12-09T10:00Z", frozenset(["Chao", "Asha"])):
+                    ["2026-12-09T11:00Z", "2026-12-09T13:00Z"],
+            }
+            require(move_details in intervals and present["free_interval"] == intervals[move_details],
+                    f"{name}: missing continuous block or incorrect move details")
     return sorted(cases)
 
 

@@ -1,0 +1,50 @@
+{
+  "snapshot_id": "synthetic-squad-week",
+  "window": ["2026-11-30T00:00Z", "2026-12-05T00:00Z"],
+  "roster": {
+    "Lead": {"timezone": "Asia/Dubai", "working_hours": ["10:00", "18:00"], "weekend": ["Sat", "Sun"]},
+    "Amal": {"timezone": "Asia/Riyadh", "working_hours": ["09:00", "17:00"], "weekend": ["Fri", "Sat"]},
+    "Sam": {"timezone": "Asia/Dubai", "working_hours": ["09:00", "17:00"], "weekend": ["Sat", "Sun"]}
+  },
+  "calendars": {
+    "Lead": {
+      "busy_coverage": [["2026-11-30T00:00Z", "2026-12-05T00:00Z"]],
+      "events": [{
+        "id": "triage",
+        "title": "Triage",
+        "organizer": "Lead",
+        "attendees": ["Lead"],
+        "attendees_complete": true,
+        "start": "2026-12-03T10:00Z",
+        "duration_minutes": 30,
+        "alternatives": ["2026-12-03T12:30Z"]
+      }]
+    },
+    "Amal": {"busy_coverage": [["2026-11-30T00:00Z", "2026-12-05T00:00Z"]]},
+    "Sam": {"busy_coverage": [["2026-11-30T00:00Z", "2026-12-05T00:00Z"]]}
+  },
+  "max_moves": 1,
+  "requests": [
+    {
+      "id": "amal-check-in",
+      "role": "one-on-one",
+      "attendees": ["Lead", "Amal"],
+      "duration_minutes": 30,
+      "starts": ["2026-11-30T09:00Z", "2026-12-03T09:00Z", "2026-12-03T09:30Z"]
+    },
+    {
+      "id": "sam-check-in",
+      "role": "one-on-one",
+      "attendees": ["Lead", "Sam"],
+      "duration_minutes": 30,
+      "starts": ["2026-12-01T09:00Z", "2026-12-03T09:00Z", "2026-12-03T09:30Z"]
+    }
+  ],
+  "portfolio": {
+    "timezone": "Asia/Dubai",
+    "focus_people": ["Lead"],
+    "movable_rituals": ["triage"],
+    "week_template": [{"role": "one-on-one", "weekdays": [3], "mode": "soft"}],
+    "cluster": {"requests": ["amal-check-in", "sam-check-in"], "after": "13:00", "before": "17:00"}
+  }
+}

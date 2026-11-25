@@ -1,0 +1,11 @@
+{
+  "profile_version": "1.0",
+  "name": "Steady-state product squad",
+  "objective": ["protected_moves", "people_disrupted", "moved_meetings", "soft_penalty", "start"],
+  "min_gain_minutes": 60,
+  "guidance": {
+    "gather": ["Collect the squad's lunch windows, preferred 1:1 afternoon and any existing maker-day agreement."],
+    "solve": ["In portfolio mode compare the best focus blocks at zero, one and two allowed ritual moves."],
+    "explain": ["Describe the uninterrupted time recovered for each focus participant and which 1:1s need agreement."]
+  }
+}

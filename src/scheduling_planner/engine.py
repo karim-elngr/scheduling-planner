@@ -2,8 +2,6 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
-from hashlib import sha256
-import json
 from time import monotonic
 
 import ortools
@@ -14,7 +12,7 @@ from .config import (
     DEFAULT_OBJECTIVE as DEFAULT, DEFAULT_TIME_LIMIT_SECONDS, DEFAULT_WORKERS, RANKINGS,
     ranking_names, time_limit, worker_count,
 )
-from .domain import Problem, iso, parse_snapshot
+from .domain import Problem, iso, parse_snapshot, snapshot_digest
 from .model import BuildContext, build_model, calendar_questions
 from .rules import compile_rules
 from .rules.api import RuleBinding
@@ -352,12 +350,7 @@ def plan(data: dict, registry=None, *, time_limit_seconds: float = DEFAULT_TIME_
     # scope and fingerprint all refer to the same detached input for this run.
     data = deepcopy(data)
     problem = parse_snapshot(data)
-    try:
-        serialized = json.dumps(data, ensure_ascii=False, sort_keys=True,
-                                separators=(",", ":"), allow_nan=False).encode("utf-8")
-    except (ValueError, TypeError) as error:
-        raise ValueError("snapshot must be JSON data with finite numbers and UTF-8 text") from error
-    fingerprint = sha256(serialized).hexdigest()
+    fingerprint = snapshot_digest(data)
     compiled = _compile(problem, registry)
     orders = _ranking_orders(problem, rankings, compiled)
     modes = ("verified", "optimistic") if compiled.has_unknowns else ("verified",)
