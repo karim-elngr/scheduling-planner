@@ -72,7 +72,7 @@ class VisualizeTests(unittest.TestCase):
             self.assertEqual(snapshot_digest(json.loads((pack / "snapshot.json").read_text(encoding="utf-8"))),
                              report["result"]["scope"]["snapshot_sha256"])
             proposal = (pack / "proposal.txt").read_text(encoding="utf-8")
-            for detail in ("09:00–09:30 UTC", "design-review", "team-sync", "Eli", "Dana", "Please confirm"):
+            for detail in ("09:00–09:30 UTC", "Design review", "Team sync", "Eli", "Dana", "Please confirm"):
                 self.assertIn(detail, proposal)
             self.assertEqual((pack / "plan.html").read_text(encoding="utf-8"), render_html(report, source))
             (pack / "proposal.txt").write_text("Edited proposal", encoding="utf-8")
@@ -89,7 +89,8 @@ class VisualizeTests(unittest.TestCase):
         result = solve_portfolio(source, compare_moves=True)
         view = page_data(render_html(result, source))
         self.assertEqual({p["id"] for p in view["options"][0]["placements"]}, {"decision", "follow-up"})
-        self.assertTrue(any("against scatter" in s for s in view["options"][0]["notes"]))
+        self.assertEqual(view["kind"], "portfolio")
+        self.assertEqual(view["participants"], request["attendees"])
         self.assertEqual([r["cells"][0] for r in view["comparison"]], [0, 1, 2])
         ids = {option["id"] for option in view["options"]}
         for row in view["comparison"]:
@@ -100,4 +101,32 @@ class VisualizeTests(unittest.TestCase):
         result = solve_portfolio(source, compare_moves=True)
         view = page_data(render_html(result, source))
         self.assertEqual(view["options"][0]["placements"], [])
-        self.assertIn("budget-0", {opt["id"] for opt in view["options"]})
+        baseline = view["comparison"][0]["option"]
+        self.assertEqual(next(opt for opt in view["options"] if opt["id"] == baseline)["moves"], [])
+
+    def test_identical_portfolio_choices_share_one_selectable_schedule(self):
+        from scheduling_planner.ingestion import build_snapshot
+
+        example = Path(__file__).resolve().parents[1] / "examples/squad-week-batch.json"
+        source = build_snapshot(json.loads(example.read_text(encoding="utf-8")))
+        report = solve_portfolio(source, compare_moves=True)
+        data = page_data(render_html(report, source))
+        self.assertEqual(data["headline"], "Where do the 1:1s fit?")
+        self.assertEqual(data["defaultTimezone"], "Asia/Dubai")
+        self.assertEqual(len(data["options"]), 1)
+        self.assertTrue(all(row["option"] == data["primary"] for row in data["comparison"]))
+        self.assertEqual(data["primary"], data["baseline"])
+        self.assertEqual(data["options"][0]["proofStatus"], "optimal")
+        self.assertIn("1:1 with Amal", data["options"][0]["proposal"])
+        self.assertIn("35h 30m", data["options"][0]["facts"][1])
+
+    def test_offline_handoff_and_embedded_code_are_scoped_to_selected_witness(self):
+        source = demo_snapshot()
+        source["request"]["metadata"] = {"title": "Budget {{REVIEW_JS}} </script>"}
+        html = render_html(brief(advise(source, compare_moves=True)), source)
+        data = page_data(html)
+        self.assertEqual(data["participants"], source["request"]["attendees"])
+        for option in data["options"]:
+            self.assertIn("Budget {{REVIEW_JS}} </script>", option["proposal"])
+            self.assertEqual(option["proposal"].count("Move "), len(option["moves"]))
+        self.assertNotIn("Budget {{REVIEW_JS}} </script>", html)

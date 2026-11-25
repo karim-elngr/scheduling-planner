@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Why wait until 15:00? · Scheduling Planner</title>
-<style>
+<style id="planner-style">
+/* Shared by the offline demo and saved scheduling proposals. */
 :root {
   color-scheme: light;
   --paper: #f4f5f0;
@@ -38,7 +39,7 @@ body {
   margin: auto;
   padding: 0 clamp(14px, 3.6vw, 58px);
 }
-button, summary, label {
+button, summary, label, select {
   font: inherit;
 }
 button, summary {
@@ -50,7 +51,7 @@ button {
 a {
   color: var(--deep);
 }
-button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visible {
+button:focus-visible, summary:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
   outline: 3px solid #a04d14;
   outline-offset: 3px;
 }
@@ -70,7 +71,6 @@ h1 {
   font: normal clamp(2.4rem, 5.2vw, 4.65rem)/1.03 Georgia, serif;
   letter-spacing: -.062em;
 }
-
 /* Page header and time choices */
 .brandbar {
   display: flex;
@@ -176,7 +176,6 @@ h1 {
   background: #ffffff20;
   color: white;
 }
-
 /* Calendar and attendee lanes */
 .workbench {
   display: grid;
@@ -207,29 +206,6 @@ h1 {
 .calendar-core {
   padding: 7px 12px 0;
 }
-.roster-groups, .calendar-grid {
-  display: grid;
-  grid-template-columns: 43px repeat(7, minmax(0, 1fr));
-}
-.roster-groups {
-  margin-top: 6px;
-}
-.roster-groups span {
-  font-size: .67rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  font-weight: 720;
-  color: var(--muted);
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--line);
-}
-.roster-groups span:first-child {
-  grid-column: 2/span 5;
-}
-.roster-groups span:last-child {
-  grid-column: 7/span 2;
-  background: var(--tint);
-}
 .clock-head, .person-head {
   height: var(--head);
   display: flex;
@@ -246,18 +222,6 @@ h1 {
   font-size: .67rem;
   color: var(--muted);
   line-height: 1.1;
-}
-.person[data-activity=conflict] .person-state {
-  color: #8b3e25;
-  font-weight: 700;
-}
-.person[data-activity=linked] .person-state {
-  color: var(--violet);
-  font-weight: 700;
-}
-.person[data-activity=gap] .person-state {
-  color: #875810;
-  font-weight: 700;
 }
 .clock-head {
   color: var(--muted);
@@ -282,9 +246,6 @@ h1 {
 .person[data-outside=true] .day {
   background-color: #f7f8f3;
 }
-.person[data-person=Eli] {
-  border-left: 2px solid #b9c6ba;
-}
 .slot, .event, .ghost, .evidence-cell {
   position: absolute;
   left: 2px;
@@ -306,24 +267,6 @@ h1 {
   justify-content: center;
   font-weight: 650;
 }
-.slot[data-state=overlap] {
-  z-index: 1;
-  left: 0;
-  right: auto;
-  width: 6px;
-  border-radius: 2px;
-  pointer-events: none;
-  background: repeating-linear-gradient(135deg, #ffd7ca 0 3px, #f6bba9 3px 5px);
-  border-color: #bc694e;
-}
-.slot[data-origin=true] {
-  left: 12px;
-  z-index: 1;
-  pointer-events: none;
-}
-.slot[data-origin=true]~.ghost {
-  font-size: 0;
-}
 .slot[data-state=preview] {
   background: var(--lime);
   border-color: #7a9e57;
@@ -337,7 +280,6 @@ h1 {
   padding: 2px;
   overflow: hidden;
 }
-
 /* Existing meetings and constraints */
 .event {
   color: #2e2944;
@@ -355,54 +297,10 @@ h1 {
   background: var(--sync);
   border-color: #b78448;
 }
-.event[data-blocking=true] {
-  box-shadow: inset 0 0 0 2px #a55137;
-}
 .event-name {
   font-weight: 650;
   overflow: hidden;
   white-space: nowrap;
-}
-.event .lock {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  min-height: 18px;
-  position: relative;
-  border-radius: 3px;
-  color: inherit;
-  cursor: pointer;
-  flex: none;
-}
-.lock input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  cursor: pointer;
-}
-.lock:has(input:focus-visible) {
-  outline: 3px solid #a04d14;
-}
-.lock svg {
-  pointer-events: none;
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.lock:has(input:checked) {
-  background: #302a3a;
-  color: white;
-}
-.lock input:checked~.open-lock, .lock input:not(:checked)~.closed-lock {
-  display: none;
 }
 .evidence-cell {
   background: transparent;
@@ -415,15 +313,6 @@ h1 {
   justify-content: center;
   padding: 2px 1px;
   font-size: .62rem;
-}
-.evidence-cell[data-missing=true] {
-  background: repeating-linear-gradient(135deg, #f7eccd 0 4px, #e6d29c 4px 6px);
-  border-color: #a28440;
-  color: #634711;
-}
-.person[data-person=Eli] .event[data-moved=true] {
-  height: calc(var(--row) - 17px) !important;
-  pointer-events: none;
 }
 .legend {
   display: flex;
@@ -450,9 +339,6 @@ h1 {
 .key.old {
   border: 1px dashed #9c9891;
 }
-.mobile-free {
-  display: none;
-}
 .evidence {
   border-top: 1px solid var(--line);
   padding: 10px 14px;
@@ -470,7 +356,6 @@ h1 {
 .evidence p, .details-note {
   color: var(--muted);
 }
-
 /* Decision, comparison and handoff */
 .inspect {
   padding: clamp(14px, 1.8vw, 24px);
@@ -640,7 +525,6 @@ footer {
 [hidden] {
   display: none !important;
 }
-
 /* Small screens and interaction preferences */
 @media (max-width: 1050px) {
   .workbench {
@@ -648,9 +532,6 @@ footer {
   }
   .calendar-core {
     padding: 7px 6px 0;
-  }
-  .calendar-grid, .roster-groups {
-    grid-template-columns: 35px repeat(7, minmax(0, 1fr));
   }
   .event-name {
     font-size: .64rem;
@@ -679,24 +560,6 @@ footer {
     --row: 45px;
     --day: 315px;
     --head: 47px;
-  }
-  .calendar-grid, .roster-groups {
-    grid-template-columns: 32px repeat(4, minmax(0, 1fr));
-  }
-  .roster-groups span:first-child {
-    grid-column: 2/span 2;
-  }
-  .roster-groups span:last-child {
-    grid-column: 4/span 2;
-  }
-  .person[data-unaffected=true] {
-    display: none;
-  }
-  .mobile-free {
-    display: block;
-    font-size: .75rem;
-    color: var(--muted);
-    padding: 4px 10px;
   }
   .candidate {
     flex-direction: column;
@@ -736,6 +599,151 @@ footer {
     border-top-width: 3px;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .slot, .event {
+    transition: none;
+  }
+}
+</style>
+<style>
+/* Controls and lane sizing for the synthetic review scenario. */
+.roster-groups, .calendar-grid {
+  display: grid;
+  grid-template-columns: 43px repeat(7, minmax(0, 1fr));
+}
+.roster-groups {
+  margin-top: 6px;
+}
+.roster-groups span {
+  font-size: .67rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 720;
+  color: var(--muted);
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.roster-groups span:first-child {
+  grid-column: 2/span 5;
+}
+.roster-groups span:last-child {
+  grid-column: 7/span 2;
+  background: var(--tint);
+}
+.person[data-activity=conflict] .person-state {
+  color: #8b3e25;
+  font-weight: 700;
+}
+.person[data-activity=linked] .person-state {
+  color: var(--violet);
+  font-weight: 700;
+}
+.person[data-activity=gap] .person-state {
+  color: #875810;
+  font-weight: 700;
+}
+.person[data-person=Eli] {
+  border-left: 2px solid #b9c6ba;
+}
+.slot[data-state=overlap] {
+  z-index: 1;
+  left: 0;
+  right: auto;
+  width: 6px;
+  border-radius: 2px;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, #ffd7ca 0 3px, #f6bba9 3px 5px);
+  border-color: #bc694e;
+}
+.slot[data-origin=true] {
+  left: 12px;
+  z-index: 1;
+  pointer-events: none;
+}
+.slot[data-origin=true]~.ghost {
+  font-size: 0;
+}
+.event[data-blocking=true] {
+  box-shadow: inset 0 0 0 2px #a55137;
+}
+.event .lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  position: relative;
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+}
+.lock input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.lock:has(input:focus-visible) {
+  outline: 3px solid #a04d14;
+}
+.lock svg {
+  pointer-events: none;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lock:has(input:checked) {
+  background: #302a3a;
+  color: white;
+}
+.lock input:checked~.open-lock, .lock input:not(:checked)~.closed-lock {
+  display: none;
+}
+.evidence-cell[data-missing=true] {
+  background: repeating-linear-gradient(135deg, #f7eccd 0 4px, #e6d29c 4px 6px);
+  border-color: #a28440;
+  color: #634711;
+}
+.person[data-person=Eli] .event[data-moved=true] {
+  height: calc(var(--row) - 17px) !important;
+  pointer-events: none;
+}
+.mobile-free {
+  display: none;
+}
+@media (max-width: 1050px) {
+  .calendar-grid, .roster-groups {
+    grid-template-columns: 35px repeat(7, minmax(0, 1fr));
+  }
+}
+@media (max-width: 580px) {
+  .calendar-grid, .roster-groups {
+    grid-template-columns: 32px repeat(4, minmax(0, 1fr));
+  }
+  .roster-groups span:first-child {
+    grid-column: 2/span 2;
+  }
+  .roster-groups span:last-child {
+    grid-column: 4/span 2;
+  }
+  .person[data-unaffected=true] {
+    display: none;
+  }
+  .mobile-free {
+    display: block;
+    font-size: .75rem;
+    color: var(--muted);
+    padding: 4px 10px;
+  }
+}
 @media (pointer: coarse) {
   .lock input {
     inset: -4px;
@@ -743,21 +751,13 @@ footer {
     height: calc(100% + 8px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .slot, .event {
-    transition: none;
-  }
-}
 </style>
 </head>
 <body><div class="shell">
-<header class="brandbar"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Scheduling Planner</div><div class="date">Tue, 1 Dec 2026 · UTC</div></header>
+<header class="brandbar"><!-- planner-brand --><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Scheduling Planner</div><!-- /planner-brand --><div class="date">Tue, 1 Dec 2026 · UTC</div></header>
 <main>
 <header class="hero"><h1>Why wait until 15:00?</h1><p>Five reviewers need 30 minutes. Pick a start to see what would have to move.</p></header>
-<div class="picks" id="picks" aria-label="Candidate group call starts" role="group" hidden>
-<button type="button" class="candidate" data-time="09:00" aria-pressed="false"><span class="candidate-time">09:00</span><span class="candidate-state">2 conflicts</span></button>
-<button type="button" class="candidate" data-time="09:30" aria-pressed="false"><span class="candidate-time">09:30</span><span class="candidate-state">1 conflict</span></button>
-<button type="button" class="candidate" data-time="15:00" aria-pressed="true"><span class="candidate-time">15:00</span><span class="candidate-state">Clear</span></button></div>
+<div class="picks" id="picks" aria-label="Candidate group call starts" role="group" hidden></div>
 <div class="workbench" id="workbench" hidden>
 <section class="calendar" aria-label="Availability by person">
 <header class="cal-top"><h2>People’s calendars</h2><span id="calendar-view">Original schedule</span></header>
@@ -784,6 +784,40 @@ footer {
 <tr><th scope="row">1</th><td>09:30</td><td>5 h 30 min</td></tr>
 <tr><th scope="row">2</th><td>09:00</td><td>30 min</td></tr></tbody></table><p id="proof">Reference results use the original fixture with both meetings movable and all seven calendars checked.</p></details>
 </main><footer>Synthetic calendars · All changes are proposals.</footer></div>
+<script id="planner-ui">
+"use strict";
+
+function plannerChoice({title, detail, selected = false, state = "clear"}, button) {
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.className = "candidate";
+    for (const part of ["candidate-time", "candidate-state"]) {
+      const span = document.createElement("span");
+      span.className = part;
+      button.append(span);
+    }
+  }
+  button.querySelector(".candidate-time").textContent = title;
+  const badge = button.querySelector(".candidate-state");
+  badge.textContent = detail || "";
+  badge.hidden = !detail;
+  button.dataset.state = state;
+  button.setAttribute("aria-pressed", String(selected));
+  return button;
+}
+
+function downloadPlannerFile(filename, contents, mimeType) {
+  const url = URL.createObjectURL(new Blob([contents], {type: mimeType}));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+</script>
 <script id="demo-data" type="application/json">{"snapshot":{"schema_version":"1.1","snapshot_id":"decision-review-v1","metadata":{"description":"Synthetic five-reviewer decision. All times UTC. Busy feeds include adjacent commitments."},"evidence_policy":"explicit","request":{"attendees":["Asha","Ben","Jules","Mei","Rami"],"duration_minutes":30,"starts":["2026-12-01T09:00Z","2026-12-01T09:30Z","2026-12-01T15:00Z"]},"people":{"Asha":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Ben":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Jules":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Mei":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Rami":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Eli":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]},"Dana":{"available":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]],"busy_coverage":[["2026-12-01T08:00Z","2026-12-01T18:00Z"]]}},"events":[{"id":"design-review","attendees":["Asha","Eli"],"start":"2026-12-01T09:00Z","duration_minutes":60,"alternatives":["2026-12-01T12:00Z"]},{"id":"team-sync","attendees":["Ben","Dana"],"start":"2026-12-01T09:00Z","duration_minutes":30,"alternatives":["2026-12-01T14:00Z"]}],"max_moves":2},"rows":[{"start":"2026-12-01T15:00Z","end":"2026-12-01T15:30Z","moves":[]},{"start":"2026-12-01T09:30Z","end":"2026-12-01T10:00Z","moves":[{"event_id":"design-review","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T12:00Z","to_end":"2026-12-01T13:00Z","attendees":["Asha","Eli"]}]},{"start":"2026-12-01T09:00Z","end":"2026-12-01T09:30Z","moves":[{"event_id":"design-review","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T12:00Z","to_end":"2026-12-01T13:00Z","attendees":["Asha","Eli"]},{"event_id":"team-sync","from_start":"2026-12-01T09:00Z","to_start":"2026-12-01T14:00Z","to_end":"2026-12-01T14:30Z","attendees":["Ben","Dana"]}]}],"solver":"9.15.6755"}</script>
 <script>
 "use strict";
@@ -1035,17 +1069,22 @@ function render() {
     const result = results.get(button.dataset.time);
     const active = time === button.dataset.time;
     const resolved = active && previewed && result.state === "conflict";
-    button.dataset.state = resolved ? "clear" : result.state;
-    button.setAttribute("aria-pressed",String(active));
-    button.querySelector(".candidate-state").textContent = resolved ? "Clear in preview" : stateLabels[result.state] ||
+    const detail = resolved ? "Clear in preview" : stateLabels[result.state] ||
       result.conflicts.length + (result.conflicts.length === 1 ? " conflict" : " conflicts");
+    plannerChoice({title: button.dataset.time, detail, selected: active, state: resolved ? "clear" : result.state}, button);
   }
   renderGrid(target, previewed); renderDecision(target, previewed); renderHandoff(target);
   byId("evidence-note").textContent = byId("coverage").checked ? "Eli’s calendar covers the full replacement review." :
     "Missing evidence: Is Eli free on 1 December from 12:00 to 13:00 UTC? Asha’s working hours alone cannot settle this.";
 }
 buildGrid();
-for (const button of document.querySelectorAll("[data-time]")) button.addEventListener("click", () => chooseTime(button.dataset.time));
+for (const start of original.request.starts) {
+  const title = clock(start);
+  const button = plannerChoice({title});
+  button.dataset.time = title;
+  button.addEventListener("click", () => chooseTime(title));
+  byId("picks").append(button);
+}
 byId("coverage").addEventListener("change", changeConstraint);
 byId("evidence").addEventListener("toggle", () => byId("eli-window").setAttribute("aria-expanded", String(byId("evidence").open)));
 byId("preview").addEventListener("click", () => {
@@ -1062,14 +1101,8 @@ byId("choose").addEventListener("click", () => {
   handingOff = true; render(); byId("close").focus();
 });
 byId("close").addEventListener("click", () => { handingOff = false; render(); byId("choose").focus(); });
-function downloadFile(filename, contents, type) {
-  const blob = new Blob([contents], {type});
-  const link = document.createElement("a"), url = URL.createObjectURL(blob);
-  link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 byId("download").addEventListener("click", () => {
-  downloadFile("snapshot.json", JSON.stringify(exportSnapshot(results.get(time)), null, 2) + "\n", "application/json");
+  downloadPlannerFile("snapshot.json", JSON.stringify(exportSnapshot(results.get(time)), null, 2) + "\n", "application/json");
 });
 byId("proposal-download").addEventListener("click", () => {
   const lines = [
@@ -1077,7 +1110,7 @@ byId("proposal-download").addEventListener("click", () => {
     ...Array.from(byId("handoff-moves").children, item => item.textContent),
     "", byId("handoff-evidence").textContent, ""
   ];
-  downloadFile("meeting-proposal.txt", lines.join("\n"), "text/plain;charset=utf-8");
+  downloadPlannerFile("meeting-proposal.txt", lines.join("\n"), "text/plain;charset=utf-8");
 });
 render();
 byId("proof").textContent = "CP-SAT " + reference.solver + " checked the original move limits. This browser demo enumerates the fixture’s starts and replacements as you change constraints.";

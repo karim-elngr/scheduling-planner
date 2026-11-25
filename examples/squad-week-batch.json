@@ -27,6 +27,7 @@
   "requests": [
     {
       "id": "amal-check-in",
+      "metadata": {"title": "1:1 with Amal"},
       "role": "one-on-one",
       "attendees": ["Lead", "Amal"],
       "duration_minutes": 30,
@@ -34,6 +35,7 @@
     },
     {
       "id": "sam-check-in",
+      "metadata": {"title": "1:1 with Sam"},
       "role": "one-on-one",
       "attendees": ["Lead", "Sam"],
       "duration_minutes": 30,
