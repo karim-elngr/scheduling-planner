@@ -24,6 +24,10 @@ uv run --locked --extra dev python tools/check_release.py dist
 | Build and strict metadata check | The source archive builds a wheel and the distribution description passes Twine's checks. The [package description](package-description.md) must make sense outside a checkout. |
 | Archive check | Exactly one sdist and one wheel are present. Package files match byte-for-byte, metadata and entry points agree, and the license, examples, schemas and required source-only assets are present. |
 
+## Refresh the documentation images
+
+The **Offline browser demo** workflow captures the three figures from Chrome and publishes the `demo-images` artifact. After changing the demo, download the artifact for the tested revision, replace the three PNGs in `docs/images/`, and check each caption against its figure. To reproduce the captures locally, install `playwright==1.65.2` in a separate Python environment with Google Chrome installed and run `python tools/capture_demo.py docs/images` from the checkout.
+
 ## Exercise the installed wheel
 
 Run this POSIX smoke test from the same checkout. The explicit directory change ensures the installed package supplies the modules and the packaged demo.

@@ -38,9 +38,6 @@ def synthetic_cases():
     cases["unfamiliar-source-and-satisficing"] = run_workflow(request(names, ["14:00"], 0),
                                                                read_person=read_calendar)
     comparison = json.loads((ROOT / "sample.json").read_text(encoding="utf-8"))
-    # The synthetic occupancy export covers both full days, including private busy intervals.
-    for person in comparison["people"].values():
-        person.setdefault("busy_coverage", [["2026-11-30T00:00Z", "2026-12-03T00:00Z"]])
     cases["comparison-and-outsider"] = run_workflow(comparison, goal="compare")
 
     data = request(["A"], ["11:00", "11:30"], 1)

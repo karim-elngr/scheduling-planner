@@ -14,7 +14,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/demo-capture"
           "$RUNNER_TEMP/demo-capture/bin/pip" install playwright==1.65.2
           "$RUNNER_TEMP/demo-capture/bin/python" tools/capture_demo.py "$RUNNER_TEMP/demo-images"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: demo-images
           path: ${{ runner.temp }}/demo-images/*.png

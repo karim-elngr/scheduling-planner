@@ -3,6 +3,6 @@ include calendar-decision-walkthrough.html run.py planner.py sample.json CONTRIB
 recursive-include examples *.py *.json
 recursive-include benchmarks *.py
 recursive-include tests *.py
-recursive-include docs *.md *.html *.svg
+recursive-include docs *.md *.html *.png
 recursive-include tools *.py
 recursive-include .agents/skills/plan-meetings *.md *.json

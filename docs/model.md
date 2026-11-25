@@ -37,6 +37,10 @@ For a meeting starting at minute `s` with duration `d`, an attendee with rest `r
 
 The model shares each occurrence's start across all its attendees. Its move flag is true precisely when that start changes. Moving one meeting with three attendees counts as one move and can disrupt three people. Someone whose two appointments both move contributes once to `people_disrupted`. A protected move is permitted and contributes to `protected_moves`.
 
+In the [interactive example](demo.html), moving Asha and Eli’s design review to noon opens 09:30 UTC. To start at 09:00, Ben and Dana must also move their sync to 14:00. Four people change their calendars for the two moves.
+
+![The 09:00 calendar preview shows the group call, the design review at noon, and the team sync at 14:00.](images/two-moves.png)
+
 A finite `decisions` domain can represent a room or standby responder. A rule connects the chosen value to capacity, availability or other requirements. A decision that changes meeting length or required attendance needs corresponding model constraints or its own scheduling scenario. See [writing a rule](writing-rules.md).
 
 ## What the solver optimizes

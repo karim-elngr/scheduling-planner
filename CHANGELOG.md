@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Include observed calendar coverage in the sample so a host can reproduce the comparison directly from the fixture.
+
 - Keep the one-move comparison and its proof when the authorized limit exceeds the number of movable meetings.
 - Validate the request roster before a host reads any calendars.
 - Save the selected demo proposal as plain text, including the people affected and any missing evidence.

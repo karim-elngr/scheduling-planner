@@ -2,7 +2,7 @@
 
 **Find a group meeting time and show what it would take to meet earlier.** The `plan-meetings` agent skill gathers dated calendar evidence. A local Python solver checks each placement, including the calendars of people whose meetings would have to move.
 
-![Three possible schedules for the same five reviewers. Keeping every meeting gives 15:00 UTC. Moving the design review gives 09:30. Moving the team sync as well gives 09:00.](docs/decision-preview.svg)
+![The demo shows a verified 09:30 UTC group call after Asha and Eli’s design review moves to noon, gaining 5 hours 30 minutes over 15:00.](docs/images/one-move.png)
 
 ## Try the decision
 

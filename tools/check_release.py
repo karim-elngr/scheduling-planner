@@ -35,7 +35,8 @@ def check(directory):
         required = [
             ".gitignore", "uv.lock", "LICENSE", "README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "run.py",
             "docs/releasing.md", "docs/preferences.md", "docs/proofs.md", "docs/demo.html",
-            "docs/workflow-evaluations.md", "docs/decision-preview.svg",
+            "docs/workflow-evaluations.md", "docs/images/one-move.png", "docs/images/two-moves.png",
+            "docs/images/conditional-handoff.png", "tools/capture_demo.py",
             "tools/check_release.py", "tools/check_browser_demo.py", "tools/refresh_demo.py", "tools/eval_agent.py",
             ".agents/skills/plan-meetings/SKILL.md",
             ".agents/skills/plan-meetings/references/solver-playbook.md",

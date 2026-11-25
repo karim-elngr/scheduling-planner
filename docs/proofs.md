@@ -31,6 +31,12 @@ Report “the second move buys 30 minutes” when `gain_proven` is true. If eith
 
 Use an option's own proof or `primary_source` to identify its scope. A narrower scenario can provide the best verified option found before timeout. Custom rules may inspect the move limit itself, so even identical placements can carry different evidence or rule costs at different caps.
 
+## Present a conditional option
+
+Remove Eli’s noon coverage in [the demo](demo.html) and choose the 09:30 proposal. The organizer can still offer 15:00 immediately. To offer 09:30, first ask whether Eli is free from 12:00 to 13:00 UTC, then seek agreement to move the design review.
+
+![The 09:30 proposal identifies Eli’s missing noon calendar evidence and keeps 15:00 as the verified fallback.](images/conditional-handoff.png)
+
 ## Investigate infeasibility
 
 A proved-infeasible pool may include an `infeasibility` record. `sufficient_core` lists hard-rule, evidence or extension assumptions sufficient for a conflict together with the calendar model. Multiple explanations may exist, and the set may include redundant assumptions. `base_infeasible` points to the underlying feasibility model. `no_diagnostic_time` means the diagnostic lacked time to explain an existing infeasibility proof. Test a proposed relaxation by changing the relevant input in a separate scenario and solving again.
